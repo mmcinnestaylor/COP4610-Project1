@@ -2,8 +2,11 @@
 
 
 ## Team Members
+
 Keaun Moughari 
+
 Marlan McInnes-Taylor 
+
 Hayden Rogers
 
 ## List of Files and Descriptions
