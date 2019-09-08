@@ -9,22 +9,25 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 
 typedef struct
 {
 	char** tokens;
 	int numTokens;
+	int count;
 } instruction;
 
 void addToken(instruction* instr_ptr, char* tok);
 void printTokens(instruction* instr_ptr);
 void clearInstruction(instruction* instr_ptr);
 void addNull(instruction* instr_ptr);
-//void parseCommand(char* token);
+void parseCommand(instruction* instr_ptr);
+int isPath(const char* tok);
+int isDir(const char* tok);
 
 int main()
 {
-	char command[100];
 	int exit = 0;
 
 	char* token = NULL;
@@ -33,6 +36,7 @@ int main()
 	instruction instr;
 	instr.tokens = NULL;
 	instr.numTokens = 0;
+	instr.count = 0;
 
 	while(exit != 1){
 		printf("%s@%s:%s> ", getenv("USER"), getenv("HOSTNAME"), getenv("PWD"));
@@ -56,6 +60,10 @@ int main()
 					{
 						memcpy(temp, token + start, i - start);
 						temp[i - start] = '\0';
+
+						if (strcmp(temp, "exit") == 0)
+							exit = 1;
+
 						addToken(&instr, temp);
 					}
 
@@ -73,6 +81,10 @@ int main()
 			{
 				memcpy(temp, token + start, strlen(token) - start);
 				temp[i - start] = '\0';
+
+				if (strcmp(temp, "exit") == 0)
+					exit = 1;
+
 				addToken(&instr, temp);
 			}
 
@@ -85,15 +97,37 @@ int main()
 		} while ('\n' != getchar()); //until end of line is reached
 
 		addNull(&instr);
+		
+		
 		printTokens(&instr);
 		clearInstruction(&instr);
-
-		exit = 1;
 	}
 
 	return 0;
 }
 
+void parseCommand(instruction* instr_ptr)
+{
+	
+}
+
+int isPath(const char* tok)
+{
+	if (strstr(tok, "/") == NULL)
+		return 0;
+	
+	return 1;
+}
+
+int isDir(const char* tok)
+{
+	struct stat* info = NULL;
+	stat(tok, info);
+	if (S_ISDIR(info->st_mode) == 0)
+		return 0;
+
+	return 1;
+}
 
 //reallocates instruction array to hold another token
 //allocates for new token within instruction array
@@ -145,5 +179,3 @@ void clearInstruction(instruction* instr_ptr)
 	instr_ptr->tokens = NULL;
 	instr_ptr->numTokens = 0;
 }
-
-//void parseCommand(char* token){}
