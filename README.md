@@ -10,7 +10,7 @@ Marlan McInnes-Taylor
 Hayden Rogers
 
 ## List of Files and Descriptions
-* parser_help.c - starter file being added to and adjusted
+* shell.c - source code for Bash emulator
 
 ## Makefile description / How to Run
 
@@ -35,7 +35,7 @@ Due to the nature of this assignment much of the labor was completed in person w
     * Calculate size of 'temp' contents and use realloc() on passed in var 'tok' to give any needed space (include room for '\0')
     * Use strcpy() or memcpy() to copy contents of 'temp' to 'tok'
     * Result should be modifying 'tok' as such: '$HOME' --> '/home/kroot'
-* ```void expandPath(char* tok)```
+* ```void expandPath(char* tok)``` - Keaun 09/13
     * Takes in path as a C string
     * Use strtok() (there may be a better function) to break up each part of the path by '/' and store each in an index of temp (will probably need to be a double ptr and allocate using malloc()/calloc() for the appropriate size of each substring) 
     * Loop through temp and each occurence of an expandable substring (i.e., ~, .., .) should be expanded accordingly to the correct absolute path
