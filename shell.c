@@ -23,8 +23,13 @@ void printTokens(instruction* instr_ptr);
 void clearInstruction(instruction* instr_ptr);
 void addNull(instruction* instr_ptr);
 void parseCommand(instruction* instr_ptr);
+void expandVar(char* tok);
+void expandPath(char* tok);
+int inPath(const char* tok);
 int isPath(const char* tok);
 int isDir(const char* tok);
+int isFile(const char* tok);
+int fileExists(const char* tok);
 
 int main()
 {
@@ -53,7 +58,7 @@ int main()
 			int start = 0;
 			for (i = 0; i < strlen(token); i++)
 			{
-				//pull out special characters and make them into a separate token in the instruction
+				//pull out special characters and make them into a separate tokaaen in the instruction
 				if (token[i] == '|' || token[i] == '>' || token[i] == '<' || token[i] == '&')
 				{
 					if (i - start > 0)
@@ -111,6 +116,21 @@ void parseCommand(instruction* instr_ptr)
 	
 }
 
+void expandVar(char* tok)
+{
+
+}
+
+void expandPath(char* tok)
+{
+
+}
+
+int inPath(const char* tok)
+{
+
+}
+
 int isPath(const char* tok)
 {
 	if (strstr(tok, "/") == NULL)
@@ -127,6 +147,16 @@ int isDir(const char* tok)
 		return 0;
 
 	return 1;
+}
+
+int isFile(const char* tok)
+{
+
+}
+
+int fileExists(const char* tok)
+{
+
 }
 
 //reallocates instruction array to hold another token
