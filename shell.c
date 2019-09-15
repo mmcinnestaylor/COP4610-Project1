@@ -118,7 +118,29 @@ void parseCommand(instruction* instr_ptr)
 
 void expandVar(char* tok)
 {
+	// * Removes special character '$'
+	// * Use getenv() to expand variable into a temp char ptr
+	// * Takes in C string of purposed variable (e.g., $HOME, $PWD, etc.)
+	// * Calculate size of 'temp' contents and use realloc() on passed in var 'tok' to give any 
+	//	 needed space (include room for '\0')
+	// * Use strcpy() or memcpy() to copy contents of 'temp' to 'tok'
+	// * Result should be modifying 'tok' as such: '$HOME' --> '/home/kroot'
+	// > Hayden >> I got this :^)
 
+	printf("%s: %s\n", "The tok to be expanded",tok);
+
+	if(tok[0] == '$')
+	{
+		//remove $
+		memcpy(tok, tok+1,sizeof(char)*strlen(tok));
+	}
+
+	char *var = getenv(tok);
+
+	tok = (char *) realloc(tok, ( (strlen(var) + 1) * sizeof(char) ));
+	strcpy(tok, var);
+
+	printf("%s: %s\n", "The tok",tok);
 }
 
 void expandPath(char* tok)
