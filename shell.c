@@ -206,7 +206,14 @@ int isFile(const char* tok)
 
 int fileExists(const char* tok)
 {
-
+	if( access( tok, F_OK ) != -1 ) 
+	{
+		return 1;
+	} 
+	else 
+	{
+		return 0;
+	}
 }
 
 //reallocates instruction array to hold another token
