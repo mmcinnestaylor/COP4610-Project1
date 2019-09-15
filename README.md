@@ -29,7 +29,7 @@ Due to the nature of this assignment much of the labor was completed in person w
 ### Git commit log
 
 ### Needed Functions / Tests
-* ```void expandVar(char* tok)```
+* ```void expandVar(char* tok)``` - Hayden
     * Takes in C string of purposed variable (e.g., $HOME, $PWD, etc.)
     * Removes special character '$'
     * Use getenv() to expand variable into a temp char ptr
@@ -55,7 +55,7 @@ Due to the nature of this assignment much of the labor was completed in person w
 * ```int isDir(const char* tok)```  - needs testing
 * ```int isFile(const char* tok)```
     * Should be very similar to isDir(), except it uses S_ISREG() instead of S_ISDIR()
-* ```int fileExists(const char* tok)```
+* ```int fileExists(const char* tok)``` - Hayden 9/15
     * Use open() with the flag O_EXCL and O_CREAT as such: open(tok, O_CREAT | O_EXCL)
     * If it fails, return 0. Otherwise, return 1
 
