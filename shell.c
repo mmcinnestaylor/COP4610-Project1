@@ -106,8 +106,6 @@ int main()
 		
 		printTokens(&instr);
 		
-		inPath((instr.tokens)[0]);
-
 		clearInstruction(&instr);
 	}
 
@@ -161,10 +159,8 @@ void expandPath(char* tok)
 int inPath(const char* tok)
 {
 	char* fullPath = NULL;
-	//char temp[] = "$PATH\0";
-	char temp[] = expandVar("$PATH\0");
+	char* temp = expandVar("$PATH\0");
 	char* path = NULL;
-	//expandVar(temp);
 
 	path = strtok(temp, ":");
 
@@ -182,7 +178,7 @@ int inPath(const char* tok)
 			free(fullPath);
 		path = strtok(NULL, ":");
 	}
-	
+
 	return 0;
 }
 
@@ -249,7 +245,7 @@ void printTokens(instruction* instr_ptr)
 	printf("Tokens:\n");
 	for (i = 0; i < instr_ptr->numTokens; i++) {
 		if ((instr_ptr->tokens)[i] != NULL)
-			printf("%d:%s\n", i,(instr_ptr->tokens)[i]);
+			printf("%s\n", (instr_ptr->tokens)[i]);
 	}
 }
 
