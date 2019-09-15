@@ -23,7 +23,7 @@ void printTokens(instruction* instr_ptr);
 void clearInstruction(instruction* instr_ptr);
 void addNull(instruction* instr_ptr);
 void parseCommand(instruction* instr_ptr);
-void expandVar(char* tok);
+char * expandVar(char* tok);
 void expandPath(char* tok);
 int inPath(const char* tok);
 int isPath(const char* tok);
@@ -116,7 +116,7 @@ void parseCommand(instruction* instr_ptr)
 	
 }
 
-void expandVar(char* tok)
+char * expandVar(char* tok)
 {
 	// * Removes special character '$'
 	// * Use getenv() to expand variable into a temp char ptr
@@ -127,20 +127,25 @@ void expandVar(char* tok)
 	// * Result should be modifying 'tok' as such: '$HOME' --> '/home/kroot'
 	// > Hayden >> I got this :^)
 
-	printf("%s: %s\n", "The tok to be expanded",tok);
+	// printf("%s: %s\n", "The tok to be expanded",tok);
+
+	char *tmpStr;
+	tmpStr = (char *) malloc((strlen(tok) + 1) * sizeof(char));
 
 	if(tok[0] == '$')
 	{
 		//remove $
-		memcpy(tok, tok+1,sizeof(char)*strlen(tok));
+		memcpy(tmpStr, tok+1,sizeof(char)*strlen(tok));
 	}
 
-	char *var = getenv(tok);
+	char *var = getenv(tmpStr);
 
-	tok = (char *) realloc(tok, ( (strlen(var) + 1) * sizeof(char) ));
-	strcpy(tok, var);
+	free(tmpStr);
 
-	printf("%s: %s\n", "The tok",tok);
+	// printf("%s: %s\n", "The tok",tok);
+	// printf("%s: %s\n", "The var",var);
+
+	return var;
 }
 
 void expandPath(char* tok)
