@@ -105,6 +105,9 @@ int main()
 		
 		
 		printTokens(&instr);
+		
+		inPath((instr.tokens)[0]);
+
 		clearInstruction(&instr);
 	}
 
@@ -130,27 +133,29 @@ void expandPath(char* tok)
 //returns 1 on success 0 on failure
 int inPath(const char* tok)
 {
-	char* fullPath;
-	char* temp = "$PATH\0";
-	char* path;
-	expandPath(temp);
+	char* fullPath = NULL;
+	//char temp[] = "$PATH\0";
+	char temp[] = expandVar("$PATH\0");
+	char* path = NULL;
+	//expandVar(temp);
 
 	path = strtok(temp, ":");
+
 	while(path != NULL){
-		fullPath = (char*)calloc(strlen(path) + strlen(tok)+ 1, sizeof(char));
+		fullPath = (char*)calloc(strlen(path) + strlen(tok)+ 2, sizeof(char));
 		strcpy(fullPath, path);
+		strcat(fullPath, "/");
 		strcat(fullPath, tok);
 
 		if(access(fullPath, X_OK) == 0){
 			free(fullPath);
-			printf("Success: command found\n");
 			return 1;
 		}
 		else
 			free(fullPath);
-		path = strtok(temp, ":");
+		path = strtok(NULL, ":");
 	}
-	printf("Error: command not found\n");
+	
 	return 0;
 }
 
@@ -217,7 +222,7 @@ void printTokens(instruction* instr_ptr)
 	printf("Tokens:\n");
 	for (i = 0; i < instr_ptr->numTokens; i++) {
 		if ((instr_ptr->tokens)[i] != NULL)
-			printf("%s\n", (instr_ptr->tokens)[i]);
+			printf("%d:%s\n", i,(instr_ptr->tokens)[i]);
 	}
 }
 
