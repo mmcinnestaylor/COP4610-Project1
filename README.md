@@ -42,7 +42,7 @@ Due to the nature of this assignment much of the labor was completed in person w
     * Once all portions of the path have been expanded, use realloc() on 'tok' to allow enough room for all of 'temp' to be copied to it (strcpy() then strcat() will probably be used)
     * Free allocated memory used by 'temp'
     * Result should be modifying 'tok' as such: '../../../bin' --> '/bin' (Assume we were in /home/kroot/Code)
-* ```int inPath(const char* tok)```
+* ```int inPath(const char* tok)``` - Marlan 9/15
     * Initialize char* temp = "$PATH\0"
     * Use temp as argument for expandVar()
     * 'temp' will look something like this when returned: '/bin:/usr/bin:/usr/sbin'

@@ -126,9 +126,32 @@ void expandPath(char* tok)
 
 }
 
+//Looks for cmd stored in tok within directories returned by $PATH
+//returns 1 on success 0 on failure
 int inPath(const char* tok)
 {
+	char* fullPath;
+	char* temp = "$PATH\0";
+	char* path;
+	expandPath(temp);
 
+	path = strtok(temp, ":");
+	while(path != NULL){
+		fullPath = (char*)calloc(strlen(path) + strlen(tok)+ 1, sizeof(char));
+		strcpy(fullPath, path);
+		strcat(fullPath, tok);
+
+		if(access(fullPath, X_OK) == 0){
+			free(fullPath);
+			printf("Success: command found\n");
+			return 1;
+		}
+		else
+			free(fullPath);
+		path = strtok(temp, ":");
+	}
+	printf("Error: command not found\n");
+	return 0;
 }
 
 int isPath(const char* tok)
