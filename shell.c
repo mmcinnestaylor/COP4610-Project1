@@ -8,8 +8,14 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <regex.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+
+// regex pattern macros
+#define N_SLASH "^(\.{1,2}|~|\$[a-zA-Z0-9]+)\/?"
+#define SLASH 	"^\/(\.{1,2}|~|\$[a-zA-Z0-9]+)\/?"
+#define PATH	"^[\/]*?[._]*?[a-zA-Z0-9_]+([\/_.-]*?[a-zA-Z0-9_]+)*"
 
 typedef struct
 {
@@ -22,14 +28,24 @@ void addToken(instruction* instr_ptr, char* tok);
 void printTokens(instruction* instr_ptr);
 void clearInstruction(instruction* instr_ptr);
 void addNull(instruction* instr_ptr);
+void runTests(instruction* instr_ptr);
 void parseCommand(instruction* instr_ptr);
 void expandVar(char* tok);
-void expandPath(char* tok);
+void expandPath(instruction* instr_ptr, int indx);
+void cleanPath(char* tok);
+int isOp(const char op);
 int inPath(const char* tok);
 int isPath(const char* tok);
+int isRoot(const char* tok);
+int isRel(const char* tok);
+int isAbs(const char* tok);
 int isDir(const char* tok);
 int isFile(const char* tok);
 int fileExists(const char* tok);
+int lvlcnt(const char* tok);
+int match(const char* tok, char* pattern);
+char* getPath();
+
 
 int main()
 {
@@ -43,8 +59,9 @@ int main()
 	instr.numTokens = 0;
 	instr.count = 0;
 
-	while(exit != 1){
-		printf("%s@%s:%s> ", getenv("USER"), getenv("HOSTNAME"), getenv("PWD"));
+	while(exit != 1)
+	{
+		printf("%s@%s : %s > ", getenv("USER"), getenv("HOSTNAME"), getenv("PWD"));
 		//printf("Please enter an instruction: ");
 		//fgets(command, 100, stdin);
 		// loop reads character sequences separated by whitespace
@@ -68,7 +85,7 @@ int main()
 
 						if (strcmp(temp, "exit") == 0)
 							exit = 1;
-
+					
 						addToken(&instr, temp);
 					}
 
@@ -102,8 +119,7 @@ int main()
 		} while ('\n' != getchar()); //until end of line is reached
 
 		addNull(&instr);
-		
-		
+		runTests(&instr);
 		printTokens(&instr);
 		clearInstruction(&instr);
 	}
@@ -111,53 +127,529 @@ int main()
 	return 0;
 }
 
+
+/*
+ *	Run Tests
+ * 	>	instruction* 
+ * 	:: 	void
+ * 		
+ * 	* iterate through intructions and run needed tests accordingly
+ * 
+ */
+void runTests(instruction* instr_ptr)
+{
+	printf("%s:\n\n", "Tests");
+
+	int i;
+	for (i = 0; i < instr_ptr->numTokens; i++)
+	{
+		if ((instr_ptr->tokens)[i] != NULL)
+		{
+			if (isPath(instr_ptr->tokens[i]))						// expandPath testing
+			{
+				printf("Path before: %s\n", (instr_ptr->tokens)[i]);
+				expandPath(instr_ptr, i);
+				printf("Path after: %s\n", (instr_ptr->tokens)[i]);
+			}
+		}
+	}
+
+	printf("\n");
+}
+
+/*
+ *	Parse Command
+ * 	>	instruction* 
+ * 	:: 	void
+ * 		
+ * 
+ */
 void parseCommand(instruction* instr_ptr)
 {
 	
 }
 
+/*
+ *	Expand Variable
+ * 	>	char* 
+ * 	:: 	void
+ * 
+ * 		
+ */
 void expandVar(char* tok)
 {
 
+
 }
 
-void expandPath(char* tok)
+/*
+ *	Clean Path
+ * 	>	char* 
+ * 	:: 	void
+ * 
+ * 	* cleans the path sent in from redundant forward slashes
+ *  * also removes trailing slashes at the end of the path 
+ */
+void cleanPath(char* tok)
 {
+	if (!isPath(tok))
+		return;
 
+	char* temp = (char*) calloc(strlen(tok) + 1, sizeof(char));
+	int i, start, repeat = 0, size = strlen(tok);
+	for (i = 0; i < size; i++)
+	{
+		if (tok[i] == '/')
+		{
+			start = i;
+			while (tok[i+1] == '/')
+			{
+				repeat++;
+				i++;
+			}
+
+			if (repeat > 0)
+			{
+				strcpy(temp, tok + i+1);
+				tok[start+1] = '\0';
+				strcat(tok, temp);
+				i = start + 1;
+				repeat = 0;
+				size = strlen(tok);
+			}
+		}
+	}
+	
+	if (size > 1 && tok[size-1] == '/')
+		tok[size-1] = '\0';
+	tok = (char*) realloc(tok, strlen(tok) + 1);
+	free(temp);	
 }
 
+/*
+ *	Expand Path
+ * 	>	char* 
+ * 	:: 	void
+ * 
+ * 	* transforms token by tokenizing it based on type of path and
+ * 		what directory operands are present
+ * 	* function is atomic, if there is an error, it will print to screen
+ * 		but 'tok' will not be changed
+ *  * if successful, 'tok' will reflect absolute path
+ */
+void expandPath(instruction* instr_ptr, int indx)
+{	
+	if (instr_ptr->tokens[indx] == NULL || isRoot(instr_ptr->tokens[indx]))
+		return;
+
+	int error = 0;
+	char* pwd = getPath(); 
+	if (pwd == NULL)
+	{
+		printf("%s", "bash: Error retrieving current path");
+		error = 1;
+	}
+
+	if (error)
+		return;
+
+	char** temp = (char**) calloc(lvlcnt(instr_ptr->tokens[indx]), sizeof(char*)); 	
+	char* tmpTok = (char*) calloc(strlen(instr_ptr->tokens[indx]) + 1, sizeof(char));
+	strcpy(tmpTok, instr_ptr->tokens[indx]); 
+	char* part = strtok(tmpTok, "/");									//tokenize by '/' delimiter
+	int i = -1;
+	while (part != NULL)
+	{
+		i++;
+		if (i == 0 && isRel(instr_ptr->tokens[indx])) 				//if path is relative
+		{															 // it will fill $PWD in temp[0]
+			temp[i] = (char*) calloc(strlen(pwd) + 1, sizeof(char));
+			strcpy(temp[i], pwd);
+			i++;
+		}
+		else if (i == 0 && match(instr_ptr->tokens[indx], "^\/+\.{1,2}*"))
+		{
+			temp[i] = (char*) calloc(2, sizeof(char));
+			strcpy(temp[i], "/");
+			i++;
+		}
+
+		temp[i] = (char*) calloc(strlen(part) + 1, sizeof(char)); 
+
+		strcpy(temp[i], part);
+		part = strtok(NULL, "/");
+	}
+
+	char* expand = NULL;
+	int count = i+1, size = 0;
+	for (i = 0; i < count; i++)
+	{
+		if (error)
+		{	
+			int j;
+			for(j = 0; j < count; j++)
+				free(temp[i]);
+			free(temp);
+			free(pwd);
+			free(tmpTok);
+			return;
+		}
+
+		if (strcmp(temp[i], "~") == 0)
+		{
+			if (i != 0)
+			{
+				printf("bash: %s: No such file or directory\n", instr_ptr->tokens[indx]);
+				error = 1;
+			}
+			else 
+			{
+				expand = getenv("HOME");
+				temp[i] = (char*) realloc(temp[i], (strlen(expand) + 1) * sizeof(char));
+				strcpy(temp[i], expand);
+			}
+		}
+		else if (strcmp(temp[i], ".") == 0)
+		{
+
+		}
+		else if (strcmp(temp[i], "..") == 0)
+		{	
+			char *tmp = NULL;
+			size = strlen(temp[0]) + 1;
+			expand = (char*) calloc(size, sizeof(char));
+			strcpy(expand, temp[0]);
+			tmp = strrchr(expand, '/');
+			*tmp = '\0';
+
+			if (isDir(expand) || isFile(expand))
+			{
+				temp[0] = (char*) realloc(temp[0], (strlen(expand) + 1) * sizeof(char));
+				strcpy(temp[0], expand);
+			}
+
+			free(expand);
+			expand = NULL;
+		}
+		else
+		{
+			if (i == 0)
+				continue;
+			else 
+			{	
+				size = strlen(temp[0]) + strlen(temp[i]) + 1;
+				
+				expand = (char*) calloc(size, sizeof(char));
+				strcpy(expand, temp[0]);
+				if (!isRoot(temp[0]))
+					strcat(expand, "/");
+				strcat(expand, temp[i]);
+
+				if (isDir(expand) || isFile(expand))
+				{
+					temp[0] = (char*) realloc(temp[0], (strlen(expand) + 1) * sizeof(char));
+					strcpy(temp[0], expand);	
+				}
+				else
+				{
+					printf("bash: %s: No such file or directory\n", instr_ptr->tokens[indx]);
+					error = 1;
+				}
+
+				free(expand);
+				expand = NULL;
+			}
+		}
+
+		if (i+1 == count)
+			size = (strlen(temp[0]) + 1);
+	}
+
+	instr_ptr->tokens[indx] = (char*) realloc(instr_ptr->tokens[indx], size * sizeof(char));
+	strcpy(instr_ptr->tokens[indx], temp[0]);
+	
+	for (i = 0; i < count; i++)
+		free(temp[i]);
+	free(temp);
+	free(pwd);
+	free(tmpTok);
+}
+
+
+/*
+ *	in Path
+ * 	>	const char* 
+ * 	:: 	int
+ * 
+ * 	* checks if command is in $PATH
+ * 	* if it is, returns 1
+ *  * otherwise, returns 0
+ */
 int inPath(const char* tok)
 {
 
 }
 
-int isPath(const char* tok)
+/*
+ *	is Root
+ * 	>	const char* 
+ * 	:: 	int
+ * 
+ * 	* checks if token is root ("/")
+ * 	* if it is, returns 1
+ *  * otherwise, returns 0
+ */
+int isRoot(const char* tok)
 {
-	if (strstr(tok, "/") == NULL)
-		return 0;
-	
-	return 1;
+	if (tok != NULL)
+		if (tok[0] == '/' && tok[1] == '\0')
+			return 1;
+
+	return 0;
 }
 
+
+/*
+ *	is Path
+ * 	>	const char* 
+ * 	:: 	int
+ * 
+ * 	* checks if token contains a forward slash
+ * 	* if it does, assumed to be a path; returns 1
+ *  * otherwise, returns 0
+ */
+int isPath(const char* tok)
+{	
+	if (tok != NULL)
+		if (strstr(tok, "/") != NULL)
+			return 1;
+
+	return 0;
+}
+
+
+/*
+ *	is Relative
+ * 	>	const char* 
+ * 	:: 	int
+ * 
+ * 	* checks if path is relative by checking first char
+ * 	* if relative, returns 1
+ *  * otherwise, returns 0
+ */
+int isRel(const char* tok)
+{
+	if (isPath(tok))
+		if (tok[0] != '/' && tok[0] != '~' && tok[0] != '$')
+			return 1;
+	
+	if (tok[0] == '.')
+		return 1;
+	
+	return 0;
+}
+
+/*
+ *	is Absolute
+ * 	>	const char* 
+ * 	:: 	int
+ * 
+ * 	* checks if path is absolute by checking first char
+ * 	* if absolute, returns 1
+ *  * otherwise, returns 0
+ */
+int isAbs(const char* tok)
+{
+	if (isPath(tok))
+		if (!isRel(tok))
+			return 1;
+	
+	return 0;
+}
+
+
+/*
+ *	is Directory
+ * 	>	const char* 
+ * 	:: 	int
+ * 
+ * 	* checks if token is a directory using stat.h
+ * 	* if it is, returns 1
+ *  * otherwise, returns 0
+ */
 int isDir(const char* tok)
 {
-	struct stat* info = NULL;
-	stat(tok, info);
-	if (S_ISDIR(info->st_mode) == 0)
+	struct stat info;
+	stat(tok, &info);
+	if (S_ISDIR(info.st_mode) == 0)
 		return 0;
 
 	return 1;
 }
 
+/*
+ *	is File
+ * 	>	const char* 
+ * 	:: 	int
+ * 
+ * 	* check if token is a file using stat.h
+ * 	* if it is, returns 1
+ *  * otherwise, returns 0
+ * 
+ */
 int isFile(const char* tok)
 {
 
-}
 
+}
+/*
+ *	file Exists
+ * 	>	const char* 
+ * 	:: 	int
+ * 
+ * 	* checks if token contains a forward slash
+ * 	* if it does, assumed to be a path; returns 1
+ *  * otherwise, returns 0
+ * 
+ */
 int fileExists(const char* tok)
 {
 
 }
+
+
+/*
+ *	is Operator
+ * 	>	const char
+ * 	:: 	int
+ * 
+ * 	* checks if token is a directory operator
+ * 	* if it is, returns 1
+ *  * otherwise, returns 0
+ * 
+ */
+int isOp(const char op)
+{
+	if (op == '.')			return 1;
+	else if (op == '$')		return 1;
+	else if (op == '~')		return 1;
+	else 					return 0;
+}
+
+/*
+ *  Level Count
+ * 	>	const char* 
+ * 	:: 	int
+ * 
+ * 	* run through tok and counts how many 'levels' or spaces
+ * 		will be needed for expandPath's double char pointer allocation
+ * 
+ */
+int lvlcnt(const char* tok)
+{
+	int i, count = 0;
+	if (isRel(tok))
+		count++;
+
+	for (i = 0; i < strlen(tok); i++)
+	{	
+		//printf("%c", tok[i]);
+		switch (tok[i])
+		{
+			case '~':
+				count++;
+				break;
+			case '.':
+				if (tok[i+1] == '.')
+				{
+					count++;
+					
+					if (tok[i+1] != '\0')
+						i++;
+				}
+				else if (tok[i+1] == '/' || tok[i+1] == '\0')
+					count++;
+				break;
+			case '$':
+				count++;
+				while (i < strlen(tok) && tok[i+1] != '/' && !isOp(tok[i+1]))
+					i++;
+				break;
+			default:
+				if (tok[i] == '/')
+				{
+					if (i == 0)  //&& (tok[i+1] == '\0' || match(tok, "^\/[^a-zA-Z0-9]+\.{1,2}*"))
+						count++;
+				}
+				else
+				{
+					count++;
+					while (i < strlen(tok) && tok[i+1] != '/' && match(tok + i+1, PATH))
+						i++;
+				}
+				break;
+		}
+
+		/*	
+		if (tok[i+1] == '\0' || tok[i] == '\0')
+			printf("\n");
+		*/
+	}
+
+	return count;
+}
+
+/*
+ *	match
+ * 	>	const char*
+ *  > 	char*  
+ * 	:: 	int
+ * 
+ * 	* uses regex.h lib for regular expressions
+ * 	* analyzes tok using given patterns
+ * 	* if there is a match, return 1
+ *  * otherwise, returns 0
+ * 
+ */
+int match(const char* tok, char* pattern)
+{
+	int stat;
+    regex_t re;
+
+    if (regcomp(&re, pattern, REG_EXTENDED|REG_ICASE|REG_NOSUB) != 0)
+    	return 0;
+
+    stat = regexec(&re, tok, (size_t) 0, NULL, 0);
+	regfree(&re);
+    
+	if (stat != 0)
+        return 0;
+
+	return 1;
+}
+
+/*
+ *	get Path 
+ * 	:: 	char*
+ * 
+ * 	** USER MUST ALWAYS FREE MEMORY ALLOCATED BY THIS FUNCTION
+ * 	* allocates space for $PWD string and returns
+ * 		it as a char ptr
+ */
+char* getPath()
+{
+	char* pwd = NULL, *temp = getenv("PWD");
+	if (temp != NULL) 
+	{
+		pwd = (char*) calloc(strlen(temp) + 1, sizeof(char));
+		strcpy(pwd, temp);
+	}
+
+	return pwd;
+}
+
+
+
 
 //reallocates instruction array to hold another token
 //allocates for new token within instruction array
@@ -168,6 +660,10 @@ void addToken(instruction* instr_ptr, char* tok)
 		instr_ptr->tokens = (char**) malloc(sizeof(char*));
 	else
 		instr_ptr->tokens = (char**) realloc(instr_ptr->tokens, (instr_ptr->numTokens+1) * sizeof(char*));
+
+	// check if tok is a path, if so clean it of excess slashes
+	if (isPath(tok))
+		cleanPath(tok);
 
 	//allocate char array for new token in new slot
 	instr_ptr->tokens[instr_ptr->numTokens] = (char *)malloc((strlen(tok)+1) * sizeof(char));

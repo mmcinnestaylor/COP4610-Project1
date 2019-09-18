@@ -1,4 +1,4 @@
-CC = gcc
+CC = gcc -g
 RM = rm -f shell *.o
 
 shell: shell.o
