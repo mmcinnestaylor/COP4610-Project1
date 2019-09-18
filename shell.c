@@ -22,6 +22,7 @@ typedef struct
 	char** tokens;
 	int numTokens;
 	int count;
+	int error;
 } instruction;
 
 void addToken(instruction* instr_ptr, char* tok);
@@ -42,13 +43,14 @@ int isAbs(const char* tok);
 int isDir(const char* tok);
 int isFile(const char* tok);
 int fileExists(const char* tok);
+int strcnt(const char* tok, int x);
 int lvlcnt(const char* tok);
 int match(const char* tok, char* pattern);
 char* getPath();
 
 
 int main()
-{
+{	
 	int exit = 0;
 
 	char* token = NULL;
@@ -58,6 +60,7 @@ int main()
 	instr.tokens = NULL;
 	instr.numTokens = 0;
 	instr.count = 0;
+	instr.error = -1;
 
 	while(exit != 1)
 	{
@@ -120,8 +123,8 @@ int main()
 
 		addNull(&instr);
 		runTests(&instr);
+		parseCommand(&instr);
 		printTokens(&instr);
-		
 		clearInstruction(&instr);
 	}
 
@@ -143,14 +146,14 @@ void runTests(instruction* instr_ptr)
 
 	int i;
 	for (i = 0; i < instr_ptr->numTokens; i++)
-	{
-		if ((instr_ptr->tokens)[i] != NULL)
+	{	
+		if (instr_ptr->tokens[i] != NULL)
 		{
 			if (isPath(instr_ptr->tokens[i]))						// expandPath testing
 			{
-				printf("Path before: %s\n", (instr_ptr->tokens)[i]);
+				printf("Path before: %s\n", instr_ptr->tokens[i]);
 				expandPath(instr_ptr, i);
-				printf("Path after: %s\n", (instr_ptr->tokens)[i]);
+				printf("Path after: %s\n", instr_ptr->tokens[i]);
 			}
 		}
 	}
@@ -167,7 +170,24 @@ void runTests(instruction* instr_ptr)
  */
 void parseCommand(instruction* instr_ptr)
 {
-	
+	int i;
+	for (i = 0; i < instr_ptr->numTokens; i++)
+	{
+		if (instr_ptr->error != -1)
+		{
+			printf("bash: %s: No such file or directory\n", instr_ptr->tokens[instr_ptr->error]);
+			return;
+		}
+
+		if (instr_ptr->tokens[i] != NULL)
+		{
+
+		}
+		else
+		{
+			return;
+		}
+	}
 }
 
 char* expandVar(char* tok)
@@ -262,19 +282,13 @@ void expandPath(instruction* instr_ptr, int indx)
 	if (instr_ptr->tokens[indx] == NULL || isRoot(instr_ptr->tokens[indx]))
 		return;
 
-	int error = 0;
 	char* pwd = getPath(); 
 	if (pwd == NULL)
-	{
 		printf("%s", "bash: Error retrieving current path");
-		error = 1;
-	}
-
-	if (error)
-		return;
 
 	char** temp = (char**) calloc(lvlcnt(instr_ptr->tokens[indx]), sizeof(char*)); 	
 	char* tmpTok = (char*) calloc(strlen(instr_ptr->tokens[indx]) + 1, sizeof(char));
+	char* old = (char*) calloc(strlen(instr_ptr->tokens[indx]) + 1, sizeof(char));
 	strcpy(tmpTok, instr_ptr->tokens[indx]); 
 	char* part = strtok(tmpTok, "/");									//tokenize by '/' delimiter
 	int i = -1;
@@ -300,27 +314,16 @@ void expandPath(instruction* instr_ptr, int indx)
 		part = strtok(NULL, "/");
 	}
 
+	free(tmpTok);
 	char* expand = NULL;
 	int count = i+1, size = 0;
 	for (i = 0; i < count; i++)
 	{
-		if (error)
-		{	
-			int j;
-			for(j = 0; j < count; j++)
-				free(temp[i]);
-			free(temp);
-			free(pwd);
-			free(tmpTok);
-			return;
-		}
-
 		if (strcmp(temp[i], "~") == 0)
 		{
 			if (i != 0)
 			{
-				printf("bash: %s: No such file or directory\n", instr_ptr->tokens[indx]);
-				error = 1;
+				instr_ptr->error = indx;
 			}
 			else 
 			{
@@ -340,16 +343,51 @@ void expandPath(instruction* instr_ptr, int indx)
 			expand = (char*) calloc(size, sizeof(char));
 			strcpy(expand, temp[0]);
 			tmp = strrchr(expand, '/');
-			*tmp = '\0';
+			if (!isRoot(tmp))
+				*tmp = '\0';
+			if (strcnt(expand, '/') == 0)
+				strcpy(expand, "/");
 
-			if (isDir(expand) || isFile(expand))
+			if (isDir(expand))
 			{
 				temp[0] = (char*) realloc(temp[0], (strlen(expand) + 1) * sizeof(char));
 				strcpy(temp[0], expand);
 			}
+			else
+			{
+				instr_ptr->error = indx;
+			}
+			
 
 			free(expand);
 			expand = NULL;
+		}
+		else if (strncmp(temp[i], "$", 1) == 0)
+		{
+			expand = expandVar(temp[i]);
+			if (expand != NULL)
+			{
+				temp[i] = (char*) realloc(temp[i], (strlen(expand) + 1) * sizeof(char));
+				strcpy(temp[i], expand);
+				if (strcmp(temp[i], temp[0]) != 0)
+				{
+					size = strlen(temp[0]) + strlen(temp[i]) + 1;
+					expand = (char*) calloc(size, sizeof(char));
+					strcpy(expand, temp[0]);
+					strcat(expand, temp[i]);
+					
+					temp[0] = (char*) realloc(temp[0], (strlen(expand) + 1) * sizeof(char));
+					strcpy(temp[0], expand);
+
+					if (!isDir(expand))
+					{
+						instr_ptr->error = indx;
+					}
+				
+					free(expand);	
+				}
+			}
+
 		}
 		else
 		{
@@ -364,16 +402,12 @@ void expandPath(instruction* instr_ptr, int indx)
 				if (!isRoot(temp[0]))
 					strcat(expand, "/");
 				strcat(expand, temp[i]);
-
-				if (isDir(expand) || isFile(expand))
+				
+				temp[0] = (char*) realloc(temp[0], (strlen(expand) + 1) * sizeof(char));
+				strcpy(temp[0], expand);
+				if (!(isDir(expand) || isFile(expand)))
 				{
-					temp[0] = (char*) realloc(temp[0], (strlen(expand) + 1) * sizeof(char));
-					strcpy(temp[0], expand);	
-				}
-				else
-				{
-					printf("bash: %s: No such file or directory\n", instr_ptr->tokens[indx]);
-					error = 1;
+					instr_ptr->error = indx;
 				}
 
 				free(expand);
@@ -385,14 +419,16 @@ void expandPath(instruction* instr_ptr, int indx)
 			size = (strlen(temp[0]) + 1);
 	}
 
-	instr_ptr->tokens[indx] = (char*) realloc(instr_ptr->tokens[indx], size * sizeof(char));
-	strcpy(instr_ptr->tokens[indx], temp[0]);
+	if (instr_ptr->error == -1) 
+	{
+		instr_ptr->tokens[indx] = (char*) realloc(instr_ptr->tokens[indx], size * sizeof(char));
+		strcpy(instr_ptr->tokens[indx], temp[0]);
+	}
 	
 	for (i = 0; i < count; i++)
 		free(temp[i]);
 	free(temp);
 	free(pwd);
-	free(tmpTok);
 }
 
 
@@ -455,7 +491,7 @@ int isRoot(const char* tok)
 int isPath(const char* tok)
 {	
 	if (tok != NULL)
-		if (strstr(tok, "/") != NULL)
+		if (match(tok, "^(/?[^/ ]*)+/?$"))
 			return 1;
 
 	return 0;
@@ -514,11 +550,10 @@ int isAbs(const char* tok)
 int isDir(const char* tok)
 {
 	struct stat info;
-	stat(tok, &info);
-	if (S_ISDIR(info.st_mode) == 0)
-		return 0;
+	if (stat(tok, &info) == 0 && S_ISDIR(info.st_mode))
+		return 1;
 
-	return 1;
+	return 0;
 }
 
 /*
@@ -533,8 +568,11 @@ int isDir(const char* tok)
  */
 int isFile(const char* tok)
 {
+	struct stat info;
+	if (stat(tok, &info) == 0 && S_ISREG(info.st_mode))
+		return 1;
 
-
+	return 0;
 }
 /*
  *	file Exists
@@ -575,6 +613,30 @@ int isOp(const char op)
 	else if (op == '$')		return 1;
 	else if (op == '~')		return 1;
 	else 					return 0;
+}
+
+
+/*
+ *  String Count
+ * 	>	const char* 
+ * 	>	int
+ * 	:: 	int
+ * 
+ * 	* run through tok and count every occurance of char x
+ * 		which is represented as an int  
+ * 	* returns count
+ * 
+ */
+int strcnt(const char* tok, int x)
+{	
+	int i, count = 0;
+	for (i = 0; i < strlen(tok); i++)
+	{
+		if (tok[i] == x)
+			count++;
+	}
+
+	return count;
 }
 
 /*

@@ -5,7 +5,7 @@ shell: shell.o
 	$(CC) -o shell shell.o
 
 shell.o: shell.c
-	$(CC) -c shell.c
+	$(CC) -w -c shell.c
 	
 clean: 
 	$(RM)
