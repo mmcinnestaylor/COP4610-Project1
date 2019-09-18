@@ -30,7 +30,7 @@ void clearInstruction(instruction* instr_ptr);
 void addNull(instruction* instr_ptr);
 void runTests(instruction* instr_ptr);
 void parseCommand(instruction* instr_ptr);
-void expandVar(char* tok);
+char* expandVar(char* tok);
 void expandPath(instruction* instr_ptr, int indx);
 void cleanPath(char* tok);
 int isOp(const char op);
@@ -121,6 +121,7 @@ int main()
 		addNull(&instr);
 		runTests(&instr);
 		printTokens(&instr);
+		
 		clearInstruction(&instr);
 	}
 
@@ -169,17 +170,36 @@ void parseCommand(instruction* instr_ptr)
 	
 }
 
-/*
- *	Expand Variable
- * 	>	char* 
- * 	:: 	void
- * 
- * 		
- */
-void expandVar(char* tok)
+char* expandVar(char* tok)
 {
+	// * Removes special character '$'
+	// * Use getenv() to expand variable into a temp char ptr
+	// * Takes in C string of purposed variable (e.g., $HOME, $PWD, etc.)
+	// * Calculate size of 'temp' contents and use realloc() on passed in var 'tok' to give any 
+	//	 needed space (include room for '\0')
+	// * Use strcpy() or memcpy() to copy contents of 'temp' to 'tok'
+	// * Result should be modifying 'tok' as such: '$HOME' --> '/home/kroot'
+	// > Hayden >> I got this :^)
 
+	// printf("%s: %s\n", "The tok to be expanded",tok);
 
+	char *tmpStr;
+	tmpStr = (char *) malloc((strlen(tok) + 1) * sizeof(char));
+
+	if(tok[0] == '$')
+	{
+		//remove $
+		memcpy(tmpStr, tok+1,sizeof(char)*strlen(tok));
+	}
+
+	char *var = getenv(tmpStr);
+
+	free(tmpStr);
+
+	// printf("%s: %s\n", "The tok",tok);
+	// printf("%s: %s\n", "The var",var);
+
+	return var;
 }
 
 /*
@@ -376,18 +396,32 @@ void expandPath(instruction* instr_ptr, int indx)
 }
 
 
-/*
- *	in Path
- * 	>	const char* 
- * 	:: 	int
- * 
- * 	* checks if command is in $PATH
- * 	* if it is, returns 1
- *  * otherwise, returns 0
- */
+//Looks for cmd stored in tok within directories returned by $PATH
+//returns 1 on success 0 on failure
 int inPath(const char* tok)
 {
+	char* fullPath = NULL;
+	char* temp = expandVar("$PATH\0");
+	char* path = NULL;
 
+	path = strtok(temp, ":");
+
+	while(path != NULL){
+		fullPath = (char*)calloc(strlen(path) + strlen(tok)+ 2, sizeof(char));
+		strcpy(fullPath, path);
+		strcat(fullPath, "/");
+		strcat(fullPath, tok);
+
+		if(access(fullPath, X_OK) == 0){
+			free(fullPath);
+			return 1;
+		}
+		else
+			free(fullPath);
+		path = strtok(NULL, ":");
+	}
+
+	return 0;
 }
 
 /*
@@ -514,7 +548,14 @@ int isFile(const char* tok)
  */
 int fileExists(const char* tok)
 {
-
+	if( access( tok, F_OK ) != -1 ) 
+	{
+		return 1;
+	} 
+	else 
+	{
+		return 0;
+	}
 }
 
 
