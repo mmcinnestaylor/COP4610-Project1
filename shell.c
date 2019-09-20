@@ -34,6 +34,7 @@ void parseCommand(instruction* instr_ptr);
 char* expandVar(char* tok);
 void expandPath(instruction* instr_ptr, int indx);
 void cleanPath(char* tok);
+void printWelcomeScreen();
 int isOp(const char op);
 int inPath(const char* tok);
 int isPath(const char* tok);
@@ -61,6 +62,8 @@ int main()
 	instr.numTokens = 0;
 	instr.count = 0;
 	instr.error = -1;
+
+	printWelcomeScreen();
 
 	while(exit != 1)
 	{
@@ -807,4 +810,16 @@ void clearInstruction(instruction* instr_ptr)
 
 	instr_ptr->tokens = NULL;
 	instr_ptr->numTokens = 0;
+}
+
+void printWelcomeScreen()
+{
+	printf("\n%s\n", " ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ");
+	printf("%s\n", "       __              ___    ___                 ");
+	printf("%s\n", "      /\\ \\            /\\_ \\  /\\_ \\                ");
+	printf("%s\n", "  ____\\ \\ \\___      __\\//\\ \\ \\//\\ \\         ___   ");
+	printf("%s\n", " /',__\\\\ \\  _ `\\  /'__`\\\\ \\ \\  \\ \\ \\       /'___\\ ");
+	printf("%s\n", "/\\__, `\\\\ \\ \\ \\ \\/\\  __/ \\_\\ \\_ \\_\\ \\_  __/\\ \\__/ ");
+	printf("%s\n", "\\/\\____/ \\ \\_\\ \\_\\ \\____\\/\\____\\/\\____\\/\\_\\ \\____\\");
+	printf("%s\n\n", " \\/___/   \\/_/\\/_/\\/____/\\/____/\\/____/\\/_/\\/____/");
 }
