@@ -26,16 +26,17 @@ typedef struct
 
 } instruction;
 
-void addToken(instruction* instr_ptr, char* tok);
-void printTokens(instruction* instr_ptr);
-void clearInstruction(instruction* instr_ptr);
-void addNull(instruction* instr_ptr);
-void runTests(instruction* instr_ptr);
-void parseCommand(instruction* instr_ptr);
-char* expandVar(char* tok);
-void expandPath(instruction* instr_ptr, int indx);
+void addToken(instruction* instr, char* tok);
+void printTokens(instruction* instr);
+void clearInstruction(instruction* instr);
+void addNull(instruction* instr);
+void runTests(instruction* instr);
+void getCommand(instruction* instr);
+void parseCommand(instruction* instr);
+void expandPath(instruction* instr, int indx);
 void cleanPath(char* tok);
 void printWelcomeScreen();
+int hasStr(instruction* instr, const char* str);
 int isOp(const char op);
 int isPathOp(const char op);
 int inPath(const char* tok);
@@ -46,19 +47,17 @@ int isAbs(const char* tok);
 int isDir(const char* tok);
 int isFile(const char* tok);
 int fileExists(const char* tok);
-int strcnt(const char* tok, int x);
 int lvlcnt(const char* tok);
+int strcnt(const char* tok, int x);
 int match(const char* tok, char* pattern);
 const char* getError(int e);
+char* expandVar(char* tok);
 char* getPath();
 
 
 int main()
 {	
 	int exit = 0;
-
-	char* token = NULL;
-	char* temp = NULL;
 
 	instruction instr;
 	instr.tokens = NULL;
@@ -71,6 +70,60 @@ int main()
 
 	while(exit != 1)
 	{
+		getCommand(&instr);
+		addNull(&instr);
+		if (hasStr(&instr, "exit"))
+			exit = 1;
+		printTokens(&instr);
+		clearInstruction(&instr);
+	}
+
+	return 0;
+}
+
+/*
+ *	Run Tests
+ * 	>	instruction* 
+ * 	:: 	void
+ * 		
+ * 	* iterate through intructions and run needed tests accordingly
+ * 
+ */
+void runTests(instruction* instr)
+{
+	printf("%s:\n\n", "Tests");
+
+	int i;
+	for (i = 0; i < instr->numTokens; i++)
+	{	
+		if (instr->tokens[i] != NULL)
+		{
+			if (isPath(instr->tokens[i]))						// expandPath testing
+			{
+				printf("Path before: %s\n", instr->tokens[i]);
+				expandPath(instr, i);
+				printf("Path after: %s\n", instr->tokens[i]);
+			}
+		}
+	}
+
+	printf("\n");
+}
+
+/*
+ * get Command
+ * 	>	instruction* 
+ * 	:: 	void
+ * 		
+ * 	** CODE FROM GIVEN FILE PARSER_HELP.C
+ *  * tokenize input for instruction struct
+ * 
+ */
+void getCommand(instruction* instr)
+{
+		char* token = NULL;
+		char* temp = NULL;
+		
 		printf("%s@%s : %s > ", getenv("USER"), getenv("HOSTNAME"), getenv("PWD"));
 		//printf("Please enter an instruction: ");
 		//fgets(command, 100, stdin);
@@ -92,18 +145,15 @@ int main()
 					{
 						memcpy(temp, token + start, i - start);
 						temp[i - start] = '\0';
-
-						if (strcmp(temp, "exit") == 0)
-							exit = 1;
 					
-						addToken(&instr, temp);
+						addToken(instr, temp);
 					}
 
 					char specialChar[2];
 					specialChar[0] = token[i];
 					specialChar[1] = '\0';
 
-					addToken(&instr, specialChar);
+					addToken(instr, specialChar);
 
 					start = i + 1;
 				}
@@ -114,10 +164,7 @@ int main()
 				memcpy(temp, token + start, strlen(token) - start);
 				temp[i - start] = '\0';
 
-				if (strcmp(temp, "exit") == 0)
-					exit = 1;
-
-				addToken(&instr, temp);
+				addToken(instr, temp);
 			}
 
 			//free and reset variables
@@ -126,47 +173,10 @@ int main()
 
 			token = NULL;
 			temp = NULL;
+
 		} while ('\n' != getchar()); //until end of line is reached
-
-		addNull(&instr);
-		//runTests(&instr);
-		//parseCommand(&instr);
-		printTokens(&instr);
-		clearInstruction(&instr);
-	}
-
-	return 0;
 }
 
-
-/*
- *	Run Tests
- * 	>	instruction* 
- * 	:: 	void
- * 		
- * 	* iterate through intructions and run needed tests accordingly
- * 
- */
-void runTests(instruction* instr_ptr)
-{
-	printf("%s:\n\n", "Tests");
-
-	int i;
-	for (i = 0; i < instr_ptr->numTokens; i++)
-	{	
-		if (instr_ptr->tokens[i] != NULL)
-		{
-			if (isPath(instr_ptr->tokens[i]))						// expandPath testing
-			{
-				printf("Path before: %s\n", instr_ptr->tokens[i]);
-				expandPath(instr_ptr, i);
-				printf("Path after: %s\n", instr_ptr->tokens[i]);
-			}
-		}
-	}
-
-	printf("\n");
-}
 
 /*
  *	Parse Command
@@ -175,18 +185,18 @@ void runTests(instruction* instr_ptr)
  * 		
  * 
  */
-void parseCommand(instruction* instr_ptr)
+void parseCommand(instruction* instr)
 {
 	int i;
-	for (i = 0; i < instr_ptr->numTokens; i++)
+	for (i = 0; i < instr->numTokens; i++)
 	{
-		if (instr_ptr->error != -1)
+		if (instr->error != -1)
 		{
-			printf("bash: %s: No such file or directory\n", instr_ptr->tokens[instr_ptr->error]);
+			printf("bash: %s: No such file or directory\n", instr->tokens[instr->error]);
 			return;
 		}
 
-		if (instr_ptr->tokens[i] != NULL)
+		if (instr->tokens[i] != NULL)
 		{
 			
 		}
@@ -197,9 +207,34 @@ void parseCommand(instruction* instr_ptr)
 	}
 }
 
+/*
+ *	has String
+ * 	>	instruction* 
+ * 	>	const char*
+ * 	:: 	int
+ * 	
+ * 	* iterate through instr's tokens searching for 'str' (string must fully match)
+ * 	* if found, return 1
+ * 	* otherwise, return 0
+ * 
+ */
+int hasStr(instruction* instr, const char* str)
+{
+	int i;
+	for (i = 0; i < instr->numTokens; i++)
+	{	
+		if (instr->tokens[i] != NULL)
+		{
+			if (strcmp(instr->tokens[i], str) == 0)
+				return 1;
+		}
+	}
+
+	return 0;
+}
 
 /*
- *	Parse Command
+ *	Expand Variable
  * 	>	char* 
  * 	:: 	char*
  * 
@@ -291,18 +326,18 @@ void cleanPath(char* tok)
  * 		but 'tok' will not be changed
  *  * if successful, 'tok' will reflect absolute path
  */
-void expandPath(instruction* instr_ptr, int indx)
+void expandPath(instruction* instr, int indx)
 {	
-	if (instr_ptr->tokens[indx] == NULL || isRoot(instr_ptr->tokens[indx]))
+	if (instr->tokens[indx] == NULL || isRoot(instr->tokens[indx]))
 		return;
 
 	char* pwd = getPath(); 
 	if (pwd == NULL)
 		printf("%s", "bash: Error retrieving current path");
 
-	char** temp = (char**) calloc(lvlcnt(instr_ptr->tokens[indx]), sizeof(char*)); 	
-	char* tmpTok = (char*) calloc(strlen(instr_ptr->tokens[indx]) + 1, sizeof(char));
-	strcpy(tmpTok, instr_ptr->tokens[indx]); 
+	char** temp = (char**) calloc(lvlcnt(instr->tokens[indx]), sizeof(char*)); 	
+	char* tmpTok = (char*) calloc(strlen(instr->tokens[indx]) + 1, sizeof(char));
+	strcpy(tmpTok, instr->tokens[indx]); 
 	char* part = strtok(tmpTok, "/");		//tokenize by '/' delimiter
 	int i = -1;
 	while (part != NULL)
@@ -310,12 +345,12 @@ void expandPath(instruction* instr_ptr, int indx)
 		i++;
 		if (i == 0) 					
 		{	
-			if (isRel(instr_ptr->tokens[indx])) 	// fill temp[0] with $PWD if tok is relative
+			if (isRel(instr->tokens[indx])) 	// fill temp[0] with $PWD if tok is relative
 			{
 				temp[i] = (char*) calloc(strlen(pwd) + 1, sizeof(char));
 				strcpy(temp[i], pwd);
 			}
-			else if (match(instr_ptr->tokens[indx], ROOT))  // make temp[0] '/' if root
+			else if (match(instr->tokens[indx], ROOT))  // make temp[0] '/' if root
 			{
 				temp[i] = (char*) calloc(2, sizeof(char));
 				strcpy(temp[i], "/");
@@ -339,8 +374,8 @@ void expandPath(instruction* instr_ptr, int indx)
 		{
 			if (i != 0)
 			{
-				instr_ptr->error = indx;
-				instr_ptr->errCode = 0;
+				instr->error = indx;
+				instr->errCode = 0;
 			}
 			else 
 			{
@@ -369,13 +404,13 @@ void expandPath(instruction* instr_ptr, int indx)
 			{	
 				if (isFile(expand))
 				{
-					instr_ptr->error = indx;
-					instr_ptr->errCode = 1;
+					instr->error = indx;
+					instr->errCode = 1;
 				}
 				else
 				{
-					instr_ptr->error = indx;
-					instr_ptr->errCode = 0;
+					instr->error = indx;
+					instr->errCode = 0;
 				}
 			}
 			else
@@ -406,8 +441,8 @@ void expandPath(instruction* instr_ptr, int indx)
 
 					if (!isDir(expand))
 					{	
-						instr_ptr->error = indx;
-						instr_ptr->errCode = 0;
+						instr->error = indx;
+						instr->errCode = 0;
 					}
 					
 					free(expand);	
@@ -436,13 +471,13 @@ void expandPath(instruction* instr_ptr, int indx)
 				{
 					if (isFile(expand) && i+1 != count)
 					{
-						instr_ptr->error = indx;
-						instr_ptr->errCode = 1;
+						instr->error = indx;
+						instr->errCode = 1;
 					}
 					else
 					{
-						instr_ptr->error = indx;
-						instr_ptr->errCode = 0;
+						instr->error = indx;
+						instr->errCode = 0;
 					}
 				}
 
@@ -455,10 +490,10 @@ void expandPath(instruction* instr_ptr, int indx)
 			size = (strlen(temp[0]) + 1);
 	}
 
-	if (instr_ptr->error == -1) 
+	if (instr->error == -1) 
 	{
-		instr_ptr->tokens[indx] = (char*) realloc(instr_ptr->tokens[indx], size * sizeof(char));
-		strcpy(instr_ptr->tokens[indx], temp[0]);
+		instr->tokens[indx] = (char*) realloc(instr->tokens[indx], size * sizeof(char));
+		strcpy(instr->tokens[indx], temp[0]);
 	}
 	
 	for (i = 0; i < count; i++)
@@ -820,57 +855,57 @@ char* getPath()
 //BEGINNING OF GIVEN PARSER CODE
 //reallocates instruction array to hold another token
 //allocates for new token within instruction array
-void addToken(instruction* instr_ptr, char* tok)
+void addToken(instruction* instr, char* tok)
 {
 	//extend token array to accomodate an additional token
-	if (instr_ptr->numTokens == 0)
-		instr_ptr->tokens = (char**) malloc(sizeof(char*));
+	if (instr->numTokens == 0)
+		instr->tokens = (char**) malloc(sizeof(char*));
 	else
-		instr_ptr->tokens = (char**) realloc(instr_ptr->tokens, (instr_ptr->numTokens+1) * sizeof(char*));
+		instr->tokens = (char**) realloc(instr->tokens, (instr->numTokens+1) * sizeof(char*));
 
 	// check if tok is a path, if so clean it of excess slashes
 	if (isPath(tok))
 		cleanPath(tok);
 
 	//allocate char array for new token in new slot
-	instr_ptr->tokens[instr_ptr->numTokens] = (char *)malloc((strlen(tok)+1) * sizeof(char));
-	strcpy(instr_ptr->tokens[instr_ptr->numTokens], tok);
+	instr->tokens[instr->numTokens] = (char *)malloc((strlen(tok)+1) * sizeof(char));
+	strcpy(instr->tokens[instr->numTokens], tok);
 
-	instr_ptr->numTokens++;
+	instr->numTokens++;
 }
 
-void addNull(instruction* instr_ptr)
+void addNull(instruction* instr)
 {
 	//extend token array to accomodate an additional token
-	if (instr_ptr->numTokens == 0)
-		instr_ptr->tokens = (char**)malloc(sizeof(char*));
+	if (instr->numTokens == 0)
+		instr->tokens = (char**)malloc(sizeof(char*));
 	else
-		instr_ptr->tokens = (char**)realloc(instr_ptr->tokens, (instr_ptr->numTokens+1) * sizeof(char*));
+		instr->tokens = (char**)realloc(instr->tokens, (instr->numTokens+1) * sizeof(char*));
 
-	instr_ptr->tokens[instr_ptr->numTokens] = (char*) NULL;
-	instr_ptr->numTokens++;
+	instr->tokens[instr->numTokens] = (char*) NULL;
+	instr->numTokens++;
 }
 
-void printTokens(instruction* instr_ptr)
+void printTokens(instruction* instr)
 {
 	int i;
 	printf("Tokens:\n");
-	for (i = 0; i < instr_ptr->numTokens; i++) {
-		if ((instr_ptr->tokens)[i] != NULL)
-			printf("%s\n", (instr_ptr->tokens)[i]);
+	for (i = 0; i < instr->numTokens; i++) {
+		if ((instr->tokens)[i] != NULL)
+			printf("%s\n", (instr->tokens)[i]);
 	}
 }
 
-void clearInstruction(instruction* instr_ptr)
+void clearInstruction(instruction* instr)
 {
 	int i;
-	for (i = 0; i < instr_ptr->numTokens; i++)
-		free(instr_ptr->tokens[i]);
+	for (i = 0; i < instr->numTokens; i++)
+		free(instr->tokens[i]);
 
-	free(instr_ptr->tokens);
+	free(instr->tokens);
 
-	instr_ptr->tokens = NULL;
-	instr_ptr->numTokens = 0;
+	instr->tokens = NULL;
+	instr->numTokens = 0;
 }
 
 void printWelcomeScreen()
