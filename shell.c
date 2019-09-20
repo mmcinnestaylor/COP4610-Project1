@@ -77,7 +77,7 @@ int main()
 		if (hasStr(&instr, "exit"))
 			exit = 1;
 		printTokens(&instr);
-		printTokens(&instr);
+		preExecParse(&instr);
 		clearInstruction(&instr);
 	}
 
