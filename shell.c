@@ -53,6 +53,8 @@ int match(const char* tok, char* pattern);
 const char* getError(int e);
 char* expandVar(char* tok);
 char* getPath();
+void preExecParse(instruction* instr_ptr);
+void testExec(char** tok, int end);
 
 
 int main()
@@ -74,6 +76,7 @@ int main()
 		addNull(&instr);
 		if (hasStr(&instr, "exit"))
 			exit = 1;
+		printTokens(&instr);
 		printTokens(&instr);
 		clearInstruction(&instr);
 	}
@@ -906,6 +909,63 @@ void clearInstruction(instruction* instr)
 
 	instr->tokens = NULL;
 	instr->numTokens = 0;
+}
+
+
+
+void preExecParse(instruction* instr_ptr)
+{
+	int i;
+	int start_old = 0;
+	int start_tmp;
+	int start = 0;
+	int end = 0;
+	int isFisrtInst = 0;
+	
+	for (i = 0; i < instr_ptr->numTokens; i++)
+	{
+		if ( (instr_ptr->tokens)[i] != NULL)
+		{	
+			end = i;
+			start = start_old;
+			if( 
+				( strcmp((instr_ptr->tokens)[i],"|") == 0) ||
+				( strcmp((instr_ptr->tokens)[i],"<") == 0) ||
+				( strcmp((instr_ptr->tokens)[i],">") == 0) ||
+				( strcmp((instr_ptr->tokens)[i],"&") == 0) 
+			){
+				start_tmp = start_old;
+				start_old = end;
+				
+				if(isFisrtInst == 0)
+					start = start_tmp;
+				else
+					start = start_tmp+1;
+
+				//printf("%s %d %s %d %s %d\n", "start:", start, "end:", end, "i:", i );
+				testExec(instr_ptr->tokens+start, end-start-1);
+				isFisrtInst = 1;
+			}
+		}
+	}
+	if(isFisrtInst == 0)
+		testExec(instr_ptr->tokens+start, end-start);
+	else
+		testExec(instr_ptr->tokens+start+1, end-start-1);
+}
+
+void testExec(char** tok, int end)
+{
+	printf("%s\n", "entering test exec function...");
+	
+	int i;
+	
+	for (i = 0; i <= end; i++)
+	{
+		printf("%s ", tok[i]);
+	}
+	printf("\n");
+	
 }
 
 void printWelcomeScreen()
