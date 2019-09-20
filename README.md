@@ -30,35 +30,7 @@ Due to the nature of this assignment much of the labor was completed in person w
 ### Git commit log
 
 ### Needed Functions / Tests
-* ```void expandVar(char* tok)``` - Hayden
-    * Takes in C string of purposed variable (e.g., $HOME, $PWD, etc.)
-    * Removes special character '$'
-    * Use getenv() to expand variable into a temp char ptr
-    * Calculate size of 'temp' contents and use realloc() on passed in var 'tok' to give any needed space (include room for '\0')
-    * Use strcpy() or memcpy() to copy contents of 'temp' to 'tok'
-    * Result should be modifying 'tok' as such: '$HOME' --> '/home/kroot'
-    > Hayden >> I got this :^)
 
-* ```void expandPath(char* tok)``` - Keaun 09/13
-    * Takes in path as a C string
-    * Use strtok() (there may be a better function) to break up each part of the path by '/' and store each in an index of temp (will probably need to be a double ptr and allocate using malloc()/calloc() for the appropriate size of each substring) 
-    * Loop through temp and each occurence of an expandable substring (i.e., ~, .., .) should be expanded accordingly to the correct absolute path
-    * Once all portions of the path have been expanded, use realloc() on 'tok' to allow enough room for all of 'temp' to be copied to it (strcpy() then strcat() will probably be used)
-    * Free allocated memory used by 'temp'
-    * Result should be modifying 'tok' as such: '../../../bin' --> '/bin' (Assume we were in /home/kroot/Code)
-* ```int inPath(const char* tok)``` - Marlan 9/15
-    * Initialize char* temp = "$PATH\0"
-    * Use temp as argument for expandVar()
-    * 'temp' will look something like this when returned: '/bin:/usr/bin:/usr/sbin'
-    * Use strtok() with ':' as delimeter to break up each path and check each dir in path for the name of an executable that matches 'tok'
-    * If no matches, print an error: " 'tok': command not found " 
-* ```int isPath(const char* tok)``` - needs testing
-* ```int isDir(const char* tok)```  - needs testing
-* ```int isFile(const char* tok)```
-    * Should be very similar to isDir(), except it uses S_ISREG() instead of S_ISDIR()
-* ```int fileExists(const char* tok)``` - Hayden 9/15
-    * Use open() with the flag O_EXCL and O_CREAT as such: open(tok, O_CREAT | O_EXCL)
-    * If it fails, return 0. Otherwise, return 1
 
 
 Notes for functions being added 9/19:
