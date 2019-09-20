@@ -917,7 +917,6 @@ void preExecParse(instruction* instr_ptr)
 {
 	int i;
 	int start_old = 0;
-	int start_tmp;
 	int start = 0;
 	int end = 0;
 	int isFisrtInst = 0;
@@ -934,14 +933,12 @@ void preExecParse(instruction* instr_ptr)
 				( strcmp((instr_ptr->tokens)[i],">") == 0) ||
 				( strcmp((instr_ptr->tokens)[i],"&") == 0) 
 			){
-				start_tmp = start_old;
-				start_old = end;
-				
 				if(isFisrtInst == 0)
-					start = start_tmp;
+					start = start_old;
 				else
-					start = start_tmp+1;
+					start = start_old+1;
 
+				start_old = end;
 				//printf("%s %d %s %d %s %d\n", "start:", start, "end:", end, "i:", i );
 				testExec(instr_ptr->tokens+start, end-start-1);
 				isFisrtInst = 1;
