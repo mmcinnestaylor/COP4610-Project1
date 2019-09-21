@@ -57,7 +57,7 @@ int strcnt(const char* tok, int x);
 int match(const char* tok, char* pattern);
 char* expandVar(char* tok);
 char* getPath();
-void executeCommand(char **cmd, const int start, const int end);
+void executeCommand(const char **cmd, const int size);
 void testExec(char** tok, int end);
 
 
@@ -85,7 +85,7 @@ int main()
 		parseCommand(&instr);
 		if (instr.error != -1)
 			printError(&instr);
-			
+
 		printTokens(&instr);
 		clearInstruction(&instr);
 	}
@@ -128,12 +128,12 @@ void printError(instruction* instr)
 	{
 		if (instr->errCode == 4)
 		{
-			printf("bash: %s: '%s'",
+			printf("bash: %s: '%s'\n",
 				getError(instr->errCode),
 				instr->tokens[instr->error] == NULL ? "newline" : instr->tokens[instr->error]);
 		}
 		else
-			printf("bash: %s: %s", instr->tokens[instr->error], getError(instr->errCode));
+			printf("bash: %s: %s\n", instr->tokens[instr->error], getError(instr->errCode));
 	}
 }
 
@@ -214,19 +214,14 @@ void getCommand(instruction* instr)
  */
 void parseCommand(instruction* instr)
 {
-	int i;
-	int start_old = 0;
-	int start = 0;
-	int end = 0;
-	int isFisrtInst = 0;
-	
-	for (i = 0; i < instr->numTokens && instr->tokens[i] != NULL; i++)
+	int i, start = 0, end = 0;
+	for (i = 0; i < instr->numTokens; i++)
 	{
 		end = i;
-		start = start_old;
-		if (isOp(instr->tokens[i]))
+		if (isOp(instr->tokens[i]) || instr->tokens[i] == NULL)
 		{
-			if (strcmp(instr->tokens[i], "|") == 0)
+			if (instr->tokens[i] == NULL) {}
+			else if (strcmp(instr->tokens[i], "|") == 0)
 			{
 				if (i == 0 || instr->tokens[i+1] == NULL)
 				{
@@ -267,20 +262,13 @@ void parseCommand(instruction* instr)
 						continue;
 				}
 			} 
-		
-			if(isFisrtInst == 0)
-				start = start_old;
-			else
-				start = start_old+1;
-
-			start_old = end;
 			//printf("%s %d %s %d %s %d\n", "start:", start, "end:", end, "i:", i );
-			testExec(instr->tokens+start, end-start-1);
-			isFisrtInst = 1;
+			executeCommand(instr->tokens+start, end-start+1);
+			start = end + 1;
 		}
 		else if (i == 0 || isOp(instr->tokens[i-1]))
 		{
-			if (strcnt(instr->tokens[i], '/') == 0)
+			if (strcnt(instr->tokens[i], '/') == 0 && !match(instr->tokens[i], "^\.{1,2}"))
 			{
 				if (!inPath(instr, i))
 					return;
@@ -289,7 +277,6 @@ void parseCommand(instruction* instr)
 			{
 				if (!expandPath(instr, i))
 					return;
-
 			}
 		}
 		else if (match(instr->tokens[i], PATH) || isPath(instr->tokens[i]))
@@ -298,10 +285,6 @@ void parseCommand(instruction* instr)
 					return;
 		}
 	}
-	if(isFisrtInst == 0)
-		testExec(instr->tokens+start, end-start);
-	else
-		testExec(instr->tokens+start+1, end-start-1);
 }
 
 /*
@@ -476,6 +459,7 @@ int expandPath(instruction* instr, int indx)
 			{
 				instr->error = indx;
 				instr->errCode = 0;
+				i = count;
 			}
 			else 
 			{
@@ -506,11 +490,13 @@ int expandPath(instruction* instr, int indx)
 				{
 					instr->error = indx;
 					instr->errCode = 1;
+					i = count;
 				}
 				else
 				{
 					instr->error = indx;
 					instr->errCode = 0;
+					i = count;
 				}
 			}
 			else
@@ -538,12 +524,6 @@ int expandPath(instruction* instr, int indx)
 					
 					temp[0] = (char*) realloc(temp[0], (strlen(expand) + 1) * sizeof(char));
 					strcpy(temp[0], expand);
-
-					if (!isDir(expand))
-					{	
-						instr->error = indx;
-						instr->errCode = 0;
-					}
 					
 					free(expand);
 					expand = NULL;
@@ -567,14 +547,6 @@ int expandPath(instruction* instr, int indx)
 				
 				temp[0] = (char*) realloc(temp[0], (strlen(expand) + 1) * sizeof(char));
 				strcpy(temp[0], expand);
-				if (!(isDir(expand)))
-				{
-					if (isFile(expand) && i+1 != count)
-					{
-						instr->error = indx;
-						instr->errCode = 1;
-					}
-				}
 
 				free(expand);
 				expand = NULL;
@@ -582,7 +554,17 @@ int expandPath(instruction* instr, int indx)
 		}
 
 		if (i+1 == count)
-			size = (strlen(temp[0]) + 1);
+		{
+			if (!(isDir(expand) || isFile(expand)))
+			{
+				instr->error = indx;
+				instr->errCode = 0;
+			}
+			else
+			{
+				size = (strlen(temp[0]) + 1);
+			}
+		}	
 	}
 
 	if (instr->error == -1) 
@@ -812,7 +794,8 @@ int isPathOp(const char op)
  */
 int isOp(const char* op)
 {
-	if (strcmp(op, "|") == 0)		return 1;
+	if (op == NULL)					return 0;
+	else if (strcmp(op, "|") == 0)	return 1;
 	else if (strcmp(op, ">") == 0) 	return 1;
 	else if (strcmp(op, "<") == 0)	return 1;
 	else if (strcmp(op, "&") == 0)	return 1;
@@ -1022,15 +1005,32 @@ void clearInstruction(instruction* instr)
 
 	instr->tokens = NULL;
 	instr->numTokens = 0;
+	instr->error = -1;
+	instr->errCode = -1;
 }
 
-void executeCommand(char **cmd, const int start, const int end)
+void executeCommand(const char **cmd, const int size)
 {
-	int status;
-	pid_t pid = fork();
+	int status, i;
+	pid_t pid;
 	//copy instructions into new array
+	
+	char** argv = (char**) calloc(size, sizeof(char*));
+	for (i = 0; i < size; i++)
+	{
+		if (i+1 == size)
+		{
+			argv[i] = (char*) NULL;
+		}
+		else
+		{
+			argv[i] = (char*) calloc(strlen(cmd[i]) + 1, sizeof(char));
+			strcpy(argv[i], cmd[i]);
+			printf("Arg %d: %s\n", i, argv[i]);
+		}
+	}
 
-	if (pid == -1)
+	if ((pid = fork()) == -1)
 	{
 		//Error
 		exit(1);
@@ -1038,9 +1038,9 @@ void executeCommand(char **cmd, const int start, const int end)
 	else if (pid == 0)
 	{
 		//Child
-		printf("The command to be executed is: %s", cmd[0]);
-		execv(cmd[0], cmd);
-		printf("Error running command\n");
+		//printf("The command to be executed is: %s", cmd[0]);
+		execv(argv[0], argv);
+		//printf("Error running command\n");
 		//printf(“Problem executing %s \n”, cmd[0]);
 		exit(1);
 	}
@@ -1049,7 +1049,12 @@ void executeCommand(char **cmd, const int start, const int end)
 		//Parent
 		waitpid(pid, &status, 0);
 	}
+
+	for (i = 0; i < size; i++)
+		free(argv[i]);
+	free(argv);
 }
+
 void testExec(char** tok, int end)
 {
 	printf("%s\n", "entering test exec function...");
