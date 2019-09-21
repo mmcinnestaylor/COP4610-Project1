@@ -29,16 +29,17 @@ typedef struct
 
 void addToken(instruction* instr, char* tok);
 void printTokens(instruction* instr);
+void printError(instruction* instr);
 void clearInstruction(instruction* instr);
 void addNull(instruction* instr);
 void runTests(instruction* instr);
 void getCommand(instruction* instr);
 void parseCommand(instruction* instr);
-void expandPath(instruction* instr, int indx);
+int expandPath(instruction* instr, int indx);
 void cleanPath(char* tok);
 void printWelcomeScreen();
 int hasStr(instruction* instr, const char* str);
-int isOp(const char op);
+int isOp(const char* op);
 int isPathOp(const char op);
 int inPath(instruction *instr, int index);
 int isPath(const char* tok);
@@ -75,9 +76,14 @@ int main()
 	{
 		getCommand(&instr);
 		addNull(&instr);
+		
 		if (hasStr(&instr, "exit"))
 			exit = 1;
+		
 		parseCommand(&instr);
+		if (instr.error)
+			printError(&instr);
+		
 		printTokens(&instr);
 		clearInstruction(&instr);
 	}
@@ -112,6 +118,21 @@ void runTests(instruction* instr)
 	}
 
 	printf("\n");
+}
+
+void printError(instruction* instr)
+{
+	if (instr->error != -1)
+	{
+		if (instr->errCode == 4)
+		{
+			printf("bash: %s: '%s'",
+				getError(instr->errCode),
+				instr->tokens[instr->error] == NULL ? "newline" : instr->tokens[instr->error]);
+		}
+		else
+			printf("bash: %s: %s", instr->tokens[instr->error], getError(instr->errCode));
+	}
 }
 
 /*
@@ -201,9 +222,8 @@ void parseCommand(instruction* instr)
 	{
 		end = i;
 		start = start_old;
-		if (isOp(*(instr->tokens[i])))
+		if (isOp(instr->tokens[i]))
 		{
-
 			if (strcmp(instr->tokens[i], "|") == 0)
 			{
 				if (i == 0 || instr->tokens[i+1] == NULL)
@@ -215,7 +235,7 @@ void parseCommand(instruction* instr)
 			}
 			else if (strcmp(instr->tokens[i], "<") == 0)
 			{
-				if (isOp(*(instr->tokens[i+1])) || instr->tokens[i+1] == NULL)
+				if (instr->tokens[i+1] == NULL || isOp(instr->tokens[i+1]))
 				{
 					instr->error = i+1;
 					instr->errCode = 4;
@@ -224,7 +244,7 @@ void parseCommand(instruction* instr)
 			}
 			else if (strcmp(instr->tokens[i], ">") == 0)
 			{
-				if (isOp(*(instr->tokens[i+1])) || instr->tokens[i+1] == NULL)
+				if (instr->tokens[i+1] == NULL || isOp(instr->tokens[i+1]))
 				{
 					instr->error = i+1;
 					instr->errCode = 4;
@@ -256,16 +276,24 @@ void parseCommand(instruction* instr)
 			testExec(instr->tokens+start, end-start-1);
 			isFisrtInst = 1;
 		}
-		else if (i == 0 || isOp(*(instr->tokens[i-1])))
+		else if (i == 0 || isOp(instr->tokens[i-1]))
 		{
 			if (strcnt(instr->tokens[i], "/") == 0)
-				inPath(instr, i);
+			{
+				if (!inPath(instr, i));
+					return;
+			}
 			else
-				expandPath(instr, i);
+			{
+				if (!expandPath(instr, i))
+					return;
+
+			}
 		}
 		else if (match(instr->tokens[i], PATH))
 		{
-			expandPath(instr, i);
+			if (!expandPath(instr, i))
+					return;
 		}
 	}
 	if(isFisrtInst == 0)
@@ -393,10 +421,10 @@ void cleanPath(char* tok)
  * 		but 'tok' will not be changed
  *  * if successful, 'tok' will reflect absolute path
  */
-void expandPath(instruction* instr, int indx)
+int expandPath(instruction* instr, int indx)
 {	
 	if (instr->tokens[indx] == NULL || isRoot(instr->tokens[indx]))
-		return;
+		return 1;
 
 	char* pwd = getPath(); 
 	if (pwd == NULL)
@@ -567,11 +595,16 @@ void expandPath(instruction* instr, int indx)
 		free(temp[i]);
 	free(temp);
 	free(pwd);
+
+	if (instr->error == -1)
+		return 1;
+	else
+		return 0;
 }
 
 //Looks for cmd stored in tok within directories returned by $PATH
 //returns 1 on success 0 on failure
-int inPath(instruction *instr_ptr, int index /*, char* tok*/)
+int inPath(instruction *instr, int index /*, char* tok*/)
 {
 	char *fullPath = NULL;
 	char *temp = expandVar("$PATH\0");
@@ -581,30 +614,42 @@ int inPath(instruction *instr_ptr, int index /*, char* tok*/)
 
 	while (path != NULL)
 	{
-		fullPath = (char *)calloc(strlen(path) + strlen((instr_ptr->tokens)[index] /*tok*/) + 2, sizeof(char));
+		fullPath = (char *)calloc(strlen(path) + strlen((instr->tokens)[index] /*tok*/) + 2, sizeof(char));
 		strcpy(fullPath, path);
 		strcat(fullPath, "/");
-		strcat(fullPath, (instr_ptr->tokens)[index] /*tok*/);
+		strcat(fullPath, (instr->tokens)[index] /*tok*/);
 
-		if (access(fullPath, X_OK) == 0)
+		if (isFile(fullPath))
 		{
-			//printf("The address of tok(old): %x\n", &(*tok));
-			//free(tok);
-			free((instr_ptr->tokens)[index]);
-			(instr_ptr->tokens)[index] = fullPath;
-			//tok = fullPath;
-			//printf("The new token: %s\n", tok);
-			printf("The new token: %s\n", (instr_ptr->tokens)[index]);
-			//printf("The address of tok: %x\n", &(*tok));
-			//printf("The address of fullPath: %x\n", &(*fullPath));
-			//free(fullPath);
-			return 1;
+			if (access(fullPath, X_OK) == 0)
+			{
+				//printf("The address of tok(old): %x\n", &(*tok));
+				//free(tok);
+				free((instr->tokens)[index]);
+				(instr->tokens)[index] = fullPath;
+				//tok = fullPath;
+				//printf("The new token: %s\n", tok);
+				printf("The new token: %s\n", (instr->tokens)[index]);
+				//printf("The address of tok: %x\n", &(*tok));
+				//printf("The address of fullPath: %x\n", &(*fullPath));
+				//free(fullPath);
+				return 1;
+			}
+			else
+			{
+				instr->error = index;
+				instr->errCode = 5;
+				free(fullPath);
+				return 0;
+			}
 		}
 		else
 			free(fullPath);
 		path = strtok(NULL, ":");
 	}
 
+	instr->error = index;
+	instr->errCode = 0;
 	return 0;
 }
 
@@ -772,13 +817,13 @@ int isPathOp(const char op)
  *  * otherwise, returns 0
  * 
  */
-int isOp(const char op)
+int isOp(const char* op)
 {
-	if (op == '|')			return 1;
-	else if (op == '>') 	return 1;
-	else if (op == '<')		return 1;
-	else if (op == '&')		return 1;
-	else 					return 0;
+	if (strcmp(op, "|") == 0)		return 1;
+	else if (strcmp(op, ">") == 0) 	return 1;
+	else if (strcmp(op, "<") == 0)	return 1;
+	else if (strcmp(op, "&") == 0)	return 1;
+	else 							return 0;
 }
 
 /*
@@ -905,6 +950,7 @@ const char* getError(int e)
 	else if (e == 2) 	return "Is a directory";
 	else if (e == 3)	return "Command not found";
 	else if (e == 4)	return "Syntax error near unexpected token";
+	else if (e == 5)	return "Permission denied";
 	else				return NULL;
 }
 
