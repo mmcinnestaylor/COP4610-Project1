@@ -15,6 +15,7 @@
 // regex pattern macros
 #define PATH	"^[\/]*?[._]*?[a-zA-Z0-9_]+([\/_.-]*?[a-zA-Z0-9_]+)*"
 #define ROOT 	"^\/+\.{1,2}*"
+#define CMD		"^[a-zA-Z0-9_-]+$"
 
 typedef struct
 {
@@ -53,7 +54,6 @@ int match(const char* tok, char* pattern);
 const char* getError(int e);
 char* expandVar(char* tok);
 char* getPath();
-void preExecParse(instruction* instr_ptr);
 void testExec(char** tok, int end);
 
 
@@ -76,8 +76,8 @@ int main()
 		addNull(&instr);
 		if (hasStr(&instr, "exit"))
 			exit = 1;
+		parseCommand(&instr);
 		printTokens(&instr);
-		preExecParse(&instr);
 		clearInstruction(&instr);
 	}
 
@@ -191,23 +191,86 @@ void getCommand(instruction* instr)
 void parseCommand(instruction* instr)
 {
 	int i;
-	for (i = 0; i < instr->numTokens; i++)
+	int start_old = 0;
+	int start = 0;
+	int end = 0;
+	int isFisrtInst = 0;
+	
+	for (i = 0; i < instr->numTokens && instr->tokens[i] != NULL; i++)
 	{
-		if (instr->error != -1)
+		end = i;
+		start = start_old;
+		if (isOp(*(instr->tokens[i])))
 		{
-			printf("bash: %s: No such file or directory\n", instr->tokens[instr->error]);
-			return;
-		}
 
-		if (instr->tokens[i] != NULL)
-		{
-			
+			if (strcmp(instr->tokens[i], "|") == 0)
+			{
+				if (i == 0 || instr->tokens[i+1] == NULL)
+				{
+					instr->error = i;
+					instr->errCode = 4;
+					return;
+				}	
+			}
+			else if (strcmp(instr->tokens[i], "<") == 0)
+			{
+				if (isOp(*(instr->tokens[i+1])) || instr->tokens[i+1] == NULL)
+				{
+					instr->error = i+1;
+					instr->errCode = 4;
+					return;
+				}
+			}
+			else if (strcmp(instr->tokens[i], ">") == 0)
+			{
+				if (isOp(*(instr->tokens[i+1])) || instr->tokens[i+1] == NULL)
+				{
+					instr->error = i+1;
+					instr->errCode = 4;
+					return;
+				}
+			}
+			else if (strcmp(instr->tokens[i], "&") == 0)
+			{
+				if (i == 0)
+				{
+					if (instr->tokens[i+1] == NULL)
+					{
+						instr->error = i;
+						instr->errCode = 4;
+						return;
+					}
+					else
+						continue;
+				}
+			} 
+		
+			if(isFisrtInst == 0)
+				start = start_old;
+			else
+				start = start_old+1;
+
+			start_old = end;
+			//printf("%s %d %s %d %s %d\n", "start:", start, "end:", end, "i:", i );
+			testExec(instr->tokens+start, end-start-1);
+			isFisrtInst = 1;
 		}
-		else
+		else if (i == 0 || isOp(*(instr->tokens[i-1])))
 		{
-			return;
+			if (strcnt(instr->tokens[i], "/") == 0)
+				inPath(instr, i);
+			else
+				expandPath(instr, i);
+		}
+		else if (match(instr->tokens[i], PATH))
+		{
+			expandPath(instr, i);
 		}
 	}
+	if(isFisrtInst == 0)
+		testExec(instr->tokens+start, end-start);
+	else
+		testExec(instr->tokens+start+1, end-start-1);
 }
 
 /*
@@ -909,46 +972,6 @@ void clearInstruction(instruction* instr)
 
 	instr->tokens = NULL;
 	instr->numTokens = 0;
-}
-
-
-
-void preExecParse(instruction* instr_ptr)
-{
-	int i;
-	int start_old = 0;
-	int start = 0;
-	int end = 0;
-	int isFisrtInst = 0;
-	
-	for (i = 0; i < instr_ptr->numTokens; i++)
-	{
-		if ( (instr_ptr->tokens)[i] != NULL)
-		{	
-			end = i;
-			start = start_old;
-			if( 
-				( strcmp((instr_ptr->tokens)[i],"|") == 0) ||
-				( strcmp((instr_ptr->tokens)[i],"<") == 0) ||
-				( strcmp((instr_ptr->tokens)[i],">") == 0) ||
-				( strcmp((instr_ptr->tokens)[i],"&") == 0) 
-			){
-				if(isFisrtInst == 0)
-					start = start_old;
-				else
-					start = start_old+1;
-
-				start_old = end;
-				//printf("%s %d %s %d %s %d\n", "start:", start, "end:", end, "i:", i );
-				testExec(instr_ptr->tokens+start, end-start-1);
-				isFisrtInst = 1;
-			}
-		}
-	}
-	if(isFisrtInst == 0)
-		testExec(instr_ptr->tokens+start, end-start);
-	else
-		testExec(instr_ptr->tokens+start+1, end-start-1);
 }
 
 void testExec(char** tok, int end)
