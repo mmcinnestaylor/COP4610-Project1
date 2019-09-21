@@ -35,8 +35,6 @@ void addNull(instruction* instr);
 void runTests(instruction* instr);
 void getCommand(instruction* instr);
 void parseCommand(instruction* instr);
-void executeCmd(char **cmd, const int start, const int end);
-
 void printError(instruction* instr);
 const char* getError(int e);
 
@@ -59,6 +57,7 @@ int strcnt(const char* tok, int x);
 int match(const char* tok, char* pattern);
 char* expandVar(char* tok);
 char* getPath();
+void executeCommand(char **cmd, const int start, const int end);
 void testExec(char** tok, int end);
 
 
@@ -87,6 +86,9 @@ int main()
 		if (instr.error != -1)
 			printError(&instr);
 		
+		printTokens(&instr);
+		inPath(&instr, 0);
+		executeCommand(instr.tokens, 0, 0);
 		printTokens(&instr);
 		clearInstruction(&instr);
 	}
@@ -353,7 +355,7 @@ char* expandVar(char* tok)
 	char *tmpStr = NULL;
 	if(tok[0] == '$')
 	{
-		tmpStr = (char *) calloc(strlen(tok) + 1, sizeof(char));
+		tmpStr = (char *) calloc(strlen(tok) + 1, sizeof(char)); 
 		//remove $
 		memcpy(tmpStr, tok+1, sizeof(char)*strlen(tok));
 	}
@@ -362,11 +364,14 @@ char* expandVar(char* tok)
 		return NULL;
 	}
 
+	char *tmpVar = (char *) calloc(strlen(getenv(tmpStr)) + 1, sizeof(char));
 	char *var = getenv(tmpStr);
+	strcpy(tmpVar, var);
+
 	if (tmpStr != NULL)
 		free(tmpStr);
 
-	return var;
+	return tmpVar;
 }
 
 /*
@@ -627,7 +632,7 @@ int inPath(instruction *instr, int index /*, char* tok*/)
 				(instr->tokens)[index] = fullPath;
 				//tok = fullPath;
 				//printf("The new token: %s\n", tok);
-				printf("The new token: %s\n", (instr->tokens)[index]);
+				//printf("The new token: %s\n", (instr->tokens)[index]);
 				//printf("The address of tok: %x\n", &(*tok));
 				//printf("The address of fullPath: %x\n", &(*fullPath));
 				//free(fullPath);
@@ -1022,7 +1027,7 @@ void clearInstruction(instruction* instr)
 	instr->numTokens = 0;
 }
 
-void executeCmd(char **cmd, const int start, const int end)
+void executeCommand(char **cmd, const int start, const int end)
 {
 	int status;
 	pid_t pid = fork();
@@ -1036,8 +1041,9 @@ void executeCmd(char **cmd, const int start, const int end)
 	else if (pid == 0)
 	{
 		//Child
+		printf("The command to be executed is: %s", cmd[0]);
 		execv(cmd[0], cmd);
-		printf("Derp derp\n");
+		printf("Error running command\n");
 		//printf(“Problem executing %s \n”, cmd[0]);
 		exit(1);
 	}
