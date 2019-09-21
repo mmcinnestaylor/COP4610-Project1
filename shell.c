@@ -85,10 +85,7 @@ int main()
 		parseCommand(&instr);
 		if (instr.error != -1)
 			printError(&instr);
-		
-		printTokens(&instr);
-		inPath(&instr, 0);
-		executeCommand(instr.tokens, 0, 0);
+			
 		printTokens(&instr);
 		clearInstruction(&instr);
 	}
