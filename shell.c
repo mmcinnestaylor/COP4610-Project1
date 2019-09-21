@@ -29,12 +29,17 @@ typedef struct
 
 void addToken(instruction* instr, char* tok);
 void printTokens(instruction* instr);
-void printError(instruction* instr);
 void clearInstruction(instruction* instr);
 void addNull(instruction* instr);
+
 void runTests(instruction* instr);
 void getCommand(instruction* instr);
 void parseCommand(instruction* instr);
+void executeCmd(char **cmd, const int start, const int end);
+
+void printError(instruction* instr);
+const char* getError(int e);
+
 int expandPath(instruction* instr, int indx);
 void cleanPath(char* tok);
 void printWelcomeScreen();
@@ -52,10 +57,8 @@ int fileExists(const char* tok);
 int lvlcnt(const char* tok);
 int strcnt(const char* tok, int x);
 int match(const char* tok, char* pattern);
-const char* getError(int e);
 char* expandVar(char* tok);
 char* getPath();
-void executeCmd(char **cmd, const int start, const int end);
 void testExec(char** tok, int end);
 
 
@@ -81,7 +84,7 @@ int main()
 			exit = 1;
 		
 		parseCommand(&instr);
-		if (instr.error)
+		if (instr.error != -1)
 			printError(&instr);
 		
 		printTokens(&instr);
@@ -278,9 +281,9 @@ void parseCommand(instruction* instr)
 		}
 		else if (i == 0 || isOp(instr->tokens[i-1]))
 		{
-			if (strcnt(instr->tokens[i], "/") == 0)
+			if (strcnt(instr->tokens[i], '/') == 0)
 			{
-				if (!inPath(instr, i));
+				if (!inPath(instr, i))
 					return;
 			}
 			else
@@ -290,7 +293,7 @@ void parseCommand(instruction* instr)
 
 			}
 		}
-		else if (match(instr->tokens[i], PATH))
+		else if (match(instr->tokens[i], PATH) || isPath(instr->tokens[i]))
 		{
 			if (!expandPath(instr, i))
 					return;
@@ -540,7 +543,7 @@ int expandPath(instruction* instr, int indx)
 						instr->errCode = 0;
 					}
 					
-					free(expand);	
+					free(expand);
 					expand = NULL;
 				}
 			}
@@ -568,11 +571,6 @@ int expandPath(instruction* instr, int indx)
 					{
 						instr->error = indx;
 						instr->errCode = 1;
-					}
-					else
-					{
-						instr->error = indx;
-						instr->errCode = 0;
 					}
 				}
 
@@ -634,13 +632,6 @@ int inPath(instruction *instr, int index /*, char* tok*/)
 				//printf("The address of fullPath: %x\n", &(*fullPath));
 				//free(fullPath);
 				return 1;
-			}
-			else
-			{
-				instr->error = index;
-				instr->errCode = 5;
-				free(fullPath);
-				return 0;
 			}
 		}
 		else
