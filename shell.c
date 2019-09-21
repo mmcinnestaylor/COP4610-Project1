@@ -87,6 +87,7 @@ int main()
 		printTokens(&instr);
 		inPath(&instr, 0);
 		executeCommand(instr.tokens, 0, 0);
+		printTokens(&instr);
 		clearInstruction(&instr);
 	}
 
@@ -1033,7 +1034,7 @@ void clearInstruction(instruction* instr)
 	instr->numTokens = 0;
 }
 
-void executeCommandd(char **cmd, const int start, const int end)
+void executeCommand(char **cmd, const int start, const int end)
 {
 	int status;
 	pid_t pid = fork();
