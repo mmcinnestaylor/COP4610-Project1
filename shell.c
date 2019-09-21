@@ -85,6 +85,8 @@ int main()
 			printError(&instr);
 		
 		printTokens(&instr);
+		inPath(&instr, 0);
+		executeCommand(instr.tokens, 0, 0);
 		clearInstruction(&instr);
 	}
 
