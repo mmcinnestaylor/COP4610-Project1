@@ -58,8 +58,14 @@ int match(const char* tok, char* pattern);
 char* expandVar(char* tok);
 char* getPath();
 void executeCommand(const char **cmd, const int size);
-void testExec(char** tok, int end);
 
+void b_exit();
+void b_echo();
+void b_cd();
+void b_alias();
+void b_unalias(); 
+
+static cmdCount = 0;
 
 int main()
 {	
@@ -68,7 +74,6 @@ int main()
 	instruction instr;
 	instr.tokens = NULL;
 	instr.numTokens = 0;
-	instr.count = 0;
 	instr.error = -1;
 	instr.errCode = -1;
 
@@ -85,7 +90,7 @@ int main()
 		parseCommand(&instr);
 		if (instr.error != -1)
 			printError(&instr);
-			
+
 		printTokens(&instr);
 		clearInstruction(&instr);
 	}
@@ -266,9 +271,29 @@ void parseCommand(instruction* instr)
 			executeCommand(instr->tokens+start, end-start+1);
 			start = end + 1;
 		}
-		else if (i == 0 || isOp(instr->tokens[i-1]))
+		else if (i == start)
 		{
-			if (strcnt(instr->tokens[i], '/') == 0 && !match(instr->tokens[i], "^\.{1,2}"))
+			if (strcmp(instr->tokens[i], "exit") == 0)
+			{
+				void b_exit();
+			}
+			else if (strcmp(instr->tokens[i], "cd") == 0)
+			{
+				void b_cd();
+			}
+			else if (strcmp(instr->tokens[i], "echo") == 0)
+			{
+				void b_echo();
+			}
+			else if (strcmp(instr->tokens[i], "alias") == 0)
+			{
+				void b_alias();	
+			}
+			else if (strcmp(instr->tokens[i], "unalias") == 0)
+			{
+				void b_unalias(); 
+			}
+			else if (strcnt(instr->tokens[i], '/') == 0 && !match(instr->tokens[i], "^[\.]{1,2}"))
 			{
 				if (!inPath(instr, i))
 					return;
@@ -277,12 +302,26 @@ void parseCommand(instruction* instr)
 			{
 				if (!expandPath(instr, i))
 					return;
+				
+				if (isDir(instr->tokens[i]))
+				{
+					instr->error = i;
+					instr->errCode = 2;
+					return;
+				}
+				else if (access(instr->tokens[i], X_OK) != 0)
+				{
+					instr->error = i;
+					instr->errCode = 5;
+					return;	
+				}	
 			}
 		}
 		else if (match(instr->tokens[i], PATH) || isPath(instr->tokens[i]))
 		{
 			if (!expandPath(instr, i))
 					return;
+			
 		}
 	}
 }
@@ -344,8 +383,10 @@ char* expandVar(char* tok)
 		return NULL;
 	}
 
-	char *tmpVar = (char *) calloc(strlen(getenv(tmpStr)) + 1, sizeof(char));
 	char *var = getenv(tmpStr);
+	if (var == NULL)
+		return NULL;
+	char *tmpVar = (char *) calloc(strlen(var) + 1, sizeof(char));
 	strcpy(tmpVar, var);
 
 	if (tmpStr != NULL)
@@ -432,14 +473,14 @@ int expandPath(instruction* instr, int indx)
 			{
 				temp[i] = (char*) calloc(strlen(pwd) + 1, sizeof(char));
 				strcpy(temp[i], pwd);
+				i++;
 			}
 			else if (match(instr->tokens[indx], ROOT))  // make temp[0] '/' if root
 			{
 				temp[i] = (char*) calloc(2, sizeof(char));
 				strcpy(temp[i], "/");
+				i++;
 			}
-			
-			i++;
 		}
 
 		temp[i] = (char*) calloc(strlen(part) + 1, sizeof(char)); 
@@ -474,39 +515,47 @@ int expandPath(instruction* instr, int indx)
 		}
 		else if (strcmp(temp[i], "..") == 0)
 		{	
-			char *tmp = NULL;
-			size = strlen(temp[0]) + 1;
-			expand = (char*) calloc(size, sizeof(char));
-			strcpy(expand, temp[0]);
-			tmp = strrchr(expand, '/');
-			if (!isRoot(tmp))
-				*tmp = '\0';
-			if (strcnt(expand, '/') == 0)
-				strcpy(expand, "/");
-
-			if (!isDir(expand))
-			{	
-				if (isFile(expand))
-				{
-					instr->error = indx;
-					instr->errCode = 1;
-					i = count;
-				}
-				else
-				{
-					instr->error = indx;
-					instr->errCode = 0;
-					i = count;
-				}
+			if (isRoot(temp[0]))
+			{
+				instr->error = indx;
+				instr->errCode = 0;
+				i = count;
 			}
 			else
 			{
-				temp[0] = (char*) realloc(temp[0], (strlen(expand) + 1) * sizeof(char));
-				strcpy(temp[0], expand);
-			}
+				char *tmp = NULL;
+				size = strlen(temp[0]) + 1;
+				expand = (char*) calloc(size, sizeof(char));
+				strcpy(expand, temp[0]);
+				tmp = strrchr(expand, '/');
+				*tmp = '\0';
+				if (strcnt(expand, '/') == 0)
+					strcpy(expand, "/");
 
-			free(expand);
-			expand = NULL;
+				if (!isDir(expand))
+				{	
+					if (isFile(expand))
+					{
+						instr->error = indx;
+						instr->errCode = 1;
+						i = count;
+					}
+					else
+					{
+						instr->error = indx;
+						instr->errCode = 0;
+						i = count;
+					}
+				}
+				else
+				{
+					temp[0] = (char*) realloc(temp[0], (strlen(expand) + 1) * sizeof(char));
+					strcpy(temp[0], expand);
+				}
+
+				free(expand);
+				expand = NULL;
+			}
 		}
 		else if (strncmp(temp[i], "$", 1) == 0)
 		{
@@ -555,7 +604,7 @@ int expandPath(instruction* instr, int indx)
 
 		if (i+1 == count)
 		{
-			if (!(isDir(expand) || isFile(expand)))
+			if (!(isDir(temp[0]) || isFile(temp[0])))
 			{
 				instr->error = indx;
 				instr->errCode = 0;
@@ -943,6 +992,90 @@ char* getPath()
 	return pwd;
 }
 
+void executeCommand(const char **cmd, const int size)
+{
+	int status, i;
+	pid_t pid;
+	//copy instructions into new array
+	
+	char** argv = (char**) calloc(size, sizeof(char*));
+	for (i = 0; i < size; i++)
+	{
+		if (i+1 == size)
+		{
+			argv[i] = (char*) NULL;
+		}
+		else
+		{
+			argv[i] = (char*) calloc(strlen(cmd[i]) + 1, sizeof(char));
+			strcpy(argv[i], cmd[i]);
+			printf("Arg %d: %s\n", i, argv[i]);
+		}
+	}
+
+	if ((pid = fork()) == -1)
+	{
+		//Error
+		exit(1);
+	}
+	else if (pid == 0)
+	{
+		//Child
+		//printf("The command to be executed is: %s", cmd[0]);
+		execv(argv[0], argv);
+		//printf("Error running command\n");
+		//printf(“Problem executing %s \n”, cmd[0]);
+		exit(1);
+	}
+	else
+	{
+		//Parent
+		waitpid(pid, &status, 0);
+	}
+
+	for (i = 0; i < size; i++)
+		free(argv[i]);
+	free(argv);
+}
+
+void b_exit()
+{
+
+}
+
+void b_echo()
+{
+
+}
+
+void b_cd()
+{
+
+}
+
+void b_alias()
+{
+
+}
+
+void b_unalias()
+{
+
+} 
+
+void printWelcomeScreen()
+{
+	printf("\n%s\n", " ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ");
+	printf("%s\n", "       __              ___    ___                 ");
+	printf("%s\n", "      /\\ \\            /\\_ \\  /\\_ \\                ");
+	printf("%s\n", "  ____\\ \\ \\___      __\\//\\ \\ \\//\\ \\          ___   ");
+	printf("%s\n", " /',__\\\\ \\  _ `\\  /'__`\\\\ \\ \\  \\ \\ \\       /'___\\ ");
+	printf("%s\n", "/\\__, `\\\\ \\ \\ \\ \\/\\  __/ \\_\\ \\_ \\_\\ \\_  __/\\ \\__/ ");
+	printf("%s\n", "\\/\\____/ \\ \\_\\ \\_\\ \\____\\/\\____\\/\\____\\/\\_\\ \\____\\");
+	printf("%s\n\n", " \\/___/   \\/_/\\/_/\\/____/\\/____/\\/____/\\/_/\\/____/");
+}
+
+
 
 //BEGINNING OF GIVEN PARSER CODE
 //reallocates instruction array to hold another token
@@ -1000,76 +1133,4 @@ void clearInstruction(instruction* instr)
 	instr->numTokens = 0;
 	instr->error = -1;
 	instr->errCode = -1;
-}
-
-void executeCommand(const char **cmd, const int size)
-{
-	int status, i;
-	pid_t pid;
-	//copy instructions into new array
-	
-	char** argv = (char**) calloc(size, sizeof(char*));
-	for (i = 0; i < size; i++)
-	{
-		if (i+1 == size)
-		{
-			argv[i] = (char*) NULL;
-		}
-		else
-		{
-			argv[i] = (char*) calloc(strlen(cmd[i]) + 1, sizeof(char));
-			strcpy(argv[i], cmd[i]);
-			printf("Arg %d: %s\n", i, argv[i]);
-		}
-	}
-
-	if ((pid = fork()) == -1)
-	{
-		//Error
-		exit(1);
-	}
-	else if (pid == 0)
-	{
-		//Child
-		//printf("The command to be executed is: %s", cmd[0]);
-		execv(argv[0], argv);
-		//printf("Error running command\n");
-		//printf(“Problem executing %s \n”, cmd[0]);
-		exit(1);
-	}
-	else
-	{
-		//Parent
-		waitpid(pid, &status, 0);
-	}
-
-	for (i = 0; i < size; i++)
-		free(argv[i]);
-	free(argv);
-}
-
-void testExec(char** tok, int end)
-{
-	printf("%s\n", "entering test exec function...");
-	
-	int i;
-	
-	for (i = 0; i <= end; i++)
-	{
-		printf("%s ", tok[i]);
-	}
-	printf("\n");
-	
-}
-
-void printWelcomeScreen()
-{
-	printf("\n%s\n", " ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ");
-	printf("%s\n", "       __              ___    ___                 ");
-	printf("%s\n", "      /\\ \\            /\\_ \\  /\\_ \\                ");
-	printf("%s\n", "  ____\\ \\ \\___      __\\//\\ \\ \\//\\ \\          ___   ");
-	printf("%s\n", " /',__\\\\ \\  _ `\\  /'__`\\\\ \\ \\  \\ \\ \\       /'___\\ ");
-	printf("%s\n", "/\\__, `\\\\ \\ \\ \\ \\/\\  __/ \\_\\ \\_ \\_\\ \\_  __/\\ \\__/ ");
-	printf("%s\n", "\\/\\____/ \\ \\_\\ \\_\\ \\____\\/\\____\\/\\____\\/\\_\\ \\____\\");
-	printf("%s\n\n", " \\/___/   \\/_/\\/_/\\/____/\\/____/\\/____/\\/_/\\/____/");
 }
