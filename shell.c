@@ -39,7 +39,7 @@ void printWelcomeScreen();
 int hasStr(instruction* instr, const char* str);
 int isOp(const char op);
 int isPathOp(const char op);
-int inPath(const char* tok);
+int inPath(instruction *instr_ptr, int index);
 int isPath(const char* tok);
 int isRoot(const char* tok);
 int isRel(const char* tok);
@@ -53,6 +53,7 @@ int match(const char* tok, char* pattern);
 const char* getError(int e);
 char* expandVar(char* tok);
 char* getPath();
+void executeCmd(char **cmd, const int start, const int end);
 void preExecParse(instruction* instr_ptr);
 void testExec(char** tok, int end);
 
@@ -505,25 +506,35 @@ void expandPath(instruction* instr, int indx)
 	free(pwd);
 }
 
-
 //Looks for cmd stored in tok within directories returned by $PATH
 //returns 1 on success 0 on failure
-int inPath(const char* tok)
+int inPath(instruction *instr_ptr, int index /*, char* tok*/)
 {
-	char* fullPath = NULL;
-	char* temp = expandVar("$PATH\0");
-	char* path = NULL;
+	char *fullPath = NULL;
+	char *temp = expandVar("$PATH\0");
+	char *path = NULL;
 
 	path = strtok(temp, ":");
 
-	while(path != NULL){
-		fullPath = (char*)calloc(strlen(path) + strlen(tok)+ 2, sizeof(char));
+	while (path != NULL)
+	{
+		fullPath = (char *)calloc(strlen(path) + strlen((instr_ptr->tokens)[index] /*tok*/) + 2, sizeof(char));
 		strcpy(fullPath, path);
 		strcat(fullPath, "/");
-		strcat(fullPath, tok);
+		strcat(fullPath, (instr_ptr->tokens)[index] /*tok*/);
 
-		if(access(fullPath, X_OK) == 0){
-			free(fullPath);
+		if (access(fullPath, X_OK) == 0)
+		{
+			//printf("The address of tok(old): %x\n", &(*tok));
+			//free(tok);
+			free((instr_ptr->tokens)[index]);
+			(instr_ptr->tokens)[index] = fullPath;
+			//tok = fullPath;
+			//printf("The new token: %s\n", tok);
+			printf("The new token: %s\n", (instr_ptr->tokens)[index]);
+			//printf("The address of tok: %x\n", &(*tok));
+			//printf("The address of fullPath: %x\n", &(*fullPath));
+			//free(fullPath);
 			return 1;
 		}
 		else
@@ -911,7 +922,31 @@ void clearInstruction(instruction* instr)
 	instr->numTokens = 0;
 }
 
+void executeCmd(char **cmd, const int start, const int end)
+{
+	int status;
+	pid_t pid = fork();
+	//copy instructions into new array
 
+	if (pid == -1)
+	{
+		//Error
+		exit(1);
+	}
+	else if (pid == 0)
+	{
+		//Child
+		execv(cmd[0], cmd);
+		printf("Derp derp\n");
+		//printf(“Problem executing %s \n”, cmd[0]);
+		exit(1);
+	}
+	else
+	{
+		//Parent
+		waitpid(pid, &status, 0);
+	}
+}
 
 void preExecParse(instruction* instr_ptr)
 {
