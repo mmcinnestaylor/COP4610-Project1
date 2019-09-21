@@ -353,7 +353,7 @@ char* expandVar(char* tok)
 	char *tmpStr = NULL;
 	if(tok[0] == '$')
 	{
-		tmpStr = (char *) calloc(strlen(tok) + 1, sizeof(char));
+		tmpStr = (char *) calloc(strlen(tok) + 1, sizeof(char)); 
 		//remove $
 		memcpy(tmpStr, tok+1, sizeof(char)*strlen(tok));
 	}
@@ -362,11 +362,14 @@ char* expandVar(char* tok)
 		return NULL;
 	}
 
+	char *tmpVar = (char *) calloc(strlen(getenv(tmpStr)) + 1, sizeof(char));
 	char *var = getenv(tmpStr);
+	strcpy(tmpVar, var);
+
 	if (tmpStr != NULL)
 		free(tmpStr);
 
-	return var;
+	return tmpVar;
 }
 
 /*
