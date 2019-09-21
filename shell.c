@@ -85,7 +85,7 @@ int main()
 		parseCommand(&instr);
 		if (instr.error != -1)
 			printError(&instr);
-
+			
 		printTokens(&instr);
 		clearInstruction(&instr);
 	}
@@ -599,22 +599,15 @@ int inPath(instruction *instr, int index /*, char* tok*/)
 		fullPath = (char *)calloc(strlen(path) + strlen((instr->tokens)[index] /*tok*/) + 2, sizeof(char));
 		strcpy(fullPath, path);
 		strcat(fullPath, "/");
-		strcat(fullPath, (instr->tokens)[index] /*tok*/);
+		strcat(fullPath, (instr->tokens)[index]);
 
 		if (isFile(fullPath))
 		{
 			if (access(fullPath, X_OK) == 0)
 			{
-				//printf("The address of tok(old): %x\n", &(*tok));
-				//free(tok);
+				free(temp);
 				free((instr->tokens)[index]);
 				(instr->tokens)[index] = fullPath;
-				//tok = fullPath;
-				//printf("The new token: %s\n", tok);
-				//printf("The new token: %s\n", (instr->tokens)[index]);
-				//printf("The address of tok: %x\n", &(*tok));
-				//printf("The address of fullPath: %x\n", &(*fullPath));
-				//free(fullPath);
 				return 1;
 			}
 		}
@@ -622,7 +615,7 @@ int inPath(instruction *instr, int index /*, char* tok*/)
 			free(fullPath);
 		path = strtok(NULL, ":");
 	}
-
+	free(temp);
 	instr->error = index;
 	instr->errCode = 0;
 	return 0;
