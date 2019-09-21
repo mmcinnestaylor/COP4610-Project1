@@ -54,7 +54,7 @@ int match(const char* tok, char* pattern);
 const char* getError(int e);
 char* expandVar(char* tok);
 char* getPath();
-void executeCmd(char **cmd, const int start, const int end);
+void executeCommand(char **cmd, const int start, const int end);
 void testExec(char** tok, int end);
 
 
@@ -77,8 +77,10 @@ int main()
 		addNull(&instr);
 		if (hasStr(&instr, "exit"))
 			exit = 1;
-		parseCommand(&instr);
+		//parseCommand(&instr);
 		printTokens(&instr);
+		inPath(&instr, 0);
+		executeCommand(instr.tokens,0,0);
 		clearInstruction(&instr);
 	}
 
@@ -588,16 +590,11 @@ int inPath(instruction *instr_ptr, int index /*, char* tok*/)
 
 		if (access(fullPath, X_OK) == 0)
 		{
-			//printf("The address of tok(old): %x\n", &(*tok));
-			//free(tok);
 			free((instr_ptr->tokens)[index]);
 			(instr_ptr->tokens)[index] = fullPath;
 			//tok = fullPath;
 			//printf("The new token: %s\n", tok);
-			printf("The new token: %s\n", (instr_ptr->tokens)[index]);
-			//printf("The address of tok: %x\n", &(*tok));
-			//printf("The address of fullPath: %x\n", &(*fullPath));
-			//free(fullPath);
+			//printf("The new token: %s\n", (instr_ptr->tokens)[index]);
 			return 1;
 		}
 		else
@@ -985,7 +982,7 @@ void clearInstruction(instruction* instr)
 	instr->numTokens = 0;
 }
 
-void executeCmd(char **cmd, const int start, const int end)
+void executeCommand(char **cmd, const int start, const int end)
 {
 	int status;
 	pid_t pid = fork();
@@ -999,8 +996,9 @@ void executeCmd(char **cmd, const int start, const int end)
 	else if (pid == 0)
 	{
 		//Child
+		printf("The command to be run: %s", cmd[0]);
 		execv(cmd[0], cmd);
-		printf("Derp derp\n");
+		printf("Error running command\n");
 		//printf(“Problem executing %s \n”, cmd[0]);
 		exit(1);
 	}
