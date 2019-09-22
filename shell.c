@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <string.h>
 #include <regex.h>
 #include <sys/types.h>
@@ -57,7 +58,8 @@ int strcnt(const char* tok, int x);
 int match(const char* tok, char* pattern);
 char* expandVar(char* tok);
 char* getPath();
-void executeCommand(const char **cmd, const int size);
+void executeCommand(const char **cmd, const int start);
+void executeRedirection(const char** cmd, const int flag);
 void testExec(char** tok, int end);
 
 
@@ -86,7 +88,10 @@ int main()
 		if (instr.error != -1)
 			printError(&instr);
 			
+		inPath(&instr, 0);
 		printTokens(&instr);
+		if(exit != 1)
+			executeRedirection(instr.tokens, 2);
 		clearInstruction(&instr);
 	}
 
@@ -1031,10 +1036,7 @@ void executeCommand(const char **cmd, const int size)
 	else if (pid == 0)
 	{
 		//Child
-		//printf("The command to be executed is: %s", cmd[0]);
 		execv(argv[0], argv);
-		//printf("Error running command\n");
-		//printf(“Problem executing %s \n”, cmd[0]);
 		exit(1);
 	}
 	else
@@ -1045,6 +1047,110 @@ void executeCommand(const char **cmd, const int size)
 
 	for (i = 0; i < size; i++)
 		free(argv[i]);
+	free(argv);
+}
+
+void executeRedirection(const char** cmd, const int flag){
+	int i = 0, j = 0, fd = 0;
+	char operatorIn[] = "<", operatorOut[] = ">";
+	char** argv = NULL;
+	
+	//Input
+	if(flag == 1){
+		while(cmd[i] != NULL){
+			if(strcmp(cmd[i], operatorIn) == 0)
+				break;
+			else
+				i++;
+		}
+
+		argv = (char**) calloc(i + 1, sizeof(char));
+		for(j = 0; j < i; j++)
+			argv[j] = cmd[j];
+		argv[i] = NULL;
+		
+		fd = open(cmd[i + 1], O_RDONLY);
+		if(fork() == 0){
+			close(STDIN_FILENO);
+			dup(fd);
+			close(fd);
+			execv(argv[0], argv);
+		}
+		else
+			close(fd);
+	}
+	//Output
+	else if(flag == 2){
+		while(cmd[i] != NULL){
+			if(strcmp(cmd[i], operatorOut) == 0)
+				break;
+			else
+				i++;
+		}
+		argv = (char**) calloc(i + 1, sizeof(char));
+		for(j = 0; j < i; j++)
+			argv[j] = cmd[j];
+		argv[i] = NULL;
+
+		fd = open(cmd[i + 1], O_WRONLY | O_TRUNC);
+		if(fork() == 0){
+			close(STDOUT_FILENO);
+			dup(fd);
+			close(fd);
+			execv(argv[0], argv);
+		}
+		else{
+			close(fd);
+		}
+	}
+	//Input + Output
+	else if(flag == 3){
+		while(cmd[i] != NULL){
+			if(strcmp(cmd[i], operatorOut) == 0)
+				break;
+			else
+				i++;
+		}
+		argv = (char**) calloc(i + 1, sizeof(char));
+		for(j = 0; j < i; j++)
+			argv[j] = cmd[j];
+		argv[i] = NULL;
+
+		fd = open(cmd[i + 1], O_WRONLY | O_TRUNC);
+		if(fork() == 0){
+			close(STDOUT_FILENO);
+			dup(fd);
+			close(fd);
+			execv(argv[0], argv);
+		}
+		else{
+			close(fd);
+		}
+	}	
+	//Output + Input
+	else if(flag == 4){
+		while(cmd[i] != NULL){
+			if(strcmp(cmd[i], operatorOut) == 0)
+				break;
+			else
+				i++;
+		}
+		argv = (char**) calloc(i + 1, sizeof(char));
+		for(j = 0; j < i; j++)
+			argv[j] = cmd[j];
+		argv[i] = NULL;
+
+		fd = open(cmd[i + 1], O_WRONLY | O_TRUNC);
+		if(fork() == 0){
+			close(STDOUT_FILENO);
+			dup(fd);
+			close(fd);
+			execv(argv[0], argv);
+		}
+		else{
+			close(fd);
+		}
+	}
 	free(argv);
 }
 
