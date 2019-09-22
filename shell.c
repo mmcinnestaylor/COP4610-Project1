@@ -241,7 +241,7 @@ void parseCommand(instruction* instr)
 			else if (strcmp(instr->tokens[i], "|") == 0)
 			{
 				flag = 2;
-				if (i == 0 || instr->tokens[i+1] == NULL)
+				if (i == start || instr->tokens[i+1] == NULL)
 				{
 					instr->error = i;
 					instr->errCode = 4;
@@ -249,7 +249,36 @@ void parseCommand(instruction* instr)
 				}
 				else
 				{
-					
+					for (i = i+1; i < instr->numTokens; i++)
+					{
+						end = i;
+						if (instr->tokens[i] == NULL)
+						{
+							i--;
+							break;
+						}
+						else if (strcmp(instr->tokens[i-1], "|") == 0)
+						{
+							if (!inPath(instr, i))
+								return;
+						}
+						else if (match(instr->tokens[i], "^-{1,2}+")) {}
+						else if (match(instr->tokens[i], PATH))
+						{
+							if (!expandPath(instr, i))
+								return;
+							if (!isDir(instr->tokens[i]) || !isFile(instr->tokens[i]))
+							{
+								instr->error = i;
+								instr->errCode = 0;
+								return;
+							}
+						}
+						else
+							break;	
+					}
+
+					continue;
 				}
 
 			}
@@ -376,11 +405,19 @@ void parseCommand(instruction* instr)
 				}
 				
 			} 
-
+			
+			int j;
 			switch (flag)
 			{
 				case 1:
+					executeRedirection(instr->tokens+start, io);
+					break;
 				case 2:
+					for (j = 0; j < end-start+1; j++)
+						printf("%s ", instr->tokens+j);
+					
+					printf("\n");
+					break;
 				case 3:
 
 				default:
@@ -785,7 +822,7 @@ int inPath(instruction *instr, int index /*, char* tok*/)
 	}
 	free(temp);
 	instr->error = index;
-	instr->errCode = 0;
+	instr->errCode = 3;
 	return 0;
 }
 
