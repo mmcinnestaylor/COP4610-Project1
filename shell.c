@@ -18,6 +18,8 @@
 #define ROOT 	"^\/+\.{1,2}*"
 #define CMD		"^[a-zA-Z0-9_-]+$"
 
+int instrCount = 0;
+
 typedef struct
 {
 	char** tokens;
@@ -63,8 +65,8 @@ void executeRedirection(const char** cmd, const int flag);
 void testExec(char** tok, int end);
 
 
-void b_exit();
-void b_echo(const char** cmd); 
+void b_exit(int instrCount);
+void b_echo(const char** cmd, const int size); 
 void b_cd(const char* path); // if folder is in CWD must append ./ or segfault
 void b_alias();
 void b_unalias(); 
@@ -103,7 +105,7 @@ int main()
 		//b_echo(instr.tokens);
 		clearInstruction(&instr);
 	}
-
+	
 	return 0;
 }
 
@@ -343,7 +345,7 @@ void parseCommand(instruction* instr)
 		{
 			if (strcmp(instr->tokens[i], "exit") == 0)
 			{
-				b_exit();
+				b_exit(instrCount);
 			}
 			else if (strcmp(instr->tokens[i], "cd") == 0)
 			{
@@ -352,7 +354,8 @@ void parseCommand(instruction* instr)
 			}
 			else if (strcmp(instr->tokens[i], "echo") == 0)
 			{
-				b_echo(instr->tokens);
+				// remove 2 & replace by var storing index of last variable to echo
+				b_echo(instr->tokens, 2); 
 			}
 			else if (strcmp(instr->tokens[i], "alias") == 0)
 			{
@@ -1100,6 +1103,7 @@ void executeCommand(const char **cmd, const int size)
 	for (i = 0; i < size; i++)
 		free(argv[i]);
 	free(argv);
+	instrCount++;
 }
 
 void executeRedirection(const char** cmd, const int flag){
@@ -1204,24 +1208,22 @@ void executeRedirection(const char** cmd, const int flag){
 		}
 	}
 	free(argv);
+	instrCount++;
 }
 
 void testExec(char** tok, int end){}
-void b_exit()
+void b_exit(int instrCount)
 {
-
+	printf("Exiting...\n");
+	printf("Instruction count: %d\n", instrCount);
 }
 
-void b_echo(const char** cmd)
+void b_echo(const char** cmd, const int size)
 {
 	int i=0;
-	while(cmd[i] != NULL){
-		if(strcmp(cmd[i], "echo") == 0)
-			break;
-		else
-			i++;
-	}
-	printf("I am echoing: %s\n", cmd[i + 1]);
+	for(i = 1; i <= size; i++)
+		printf("%s ", cmd[i]);
+	printf('\n');
 }
 
 void b_cd(const char* path)
