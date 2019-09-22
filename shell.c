@@ -79,6 +79,7 @@ char* expandVar(char* tok);
 char* getPath();
 void executeCommand(const char **cmd, const int size);
 void executeRedirection(const char** cmd, const int flag);
+void clearAliases();
 
 void b_exit(int instrCount);
 void b_echo(const char** cmd, const int size); 
@@ -1410,8 +1411,18 @@ void executeRedirection(const char** cmd, const int flag){
 	instrCount++;
 }
 
+void clearAliases(){
+	int i = 0;
+	for(i; i < aliases->arrSize; i++){
+		free((aliases->arr[i]).cmdAlias);
+		free((aliases->arr[i]).cmd);
+	}
+}
+
+
 void b_exit(int instrCount)
 {
+	clearALiases();
 	printf("Exiting...\n");
 	printf("\tCommands executed: %d\n", instrCount);
 	myExit = 1;
