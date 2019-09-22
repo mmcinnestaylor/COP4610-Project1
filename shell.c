@@ -37,7 +37,7 @@ typedef struct
 
 typedef struct
 {
-	pair* arr[10];
+	pair arr[10];
 	int arrSize = 0;
 	const int maxSize = 10;
 
@@ -86,7 +86,7 @@ void b_exit(int instrCount);
 void b_echo(const char** cmd, const int size); 
 void b_cd(const char* path); // if folder is in CWD must append ./ or segfault
 void b_alias(const char** cmd, alias* aliases);
-void b_unalias(); 
+void b_unalias(const char** cmd, alias* aliases); 
 
 int main()
 {	
@@ -1348,10 +1348,6 @@ void executeRedirection(const char** cmd, const int flag){
 			else
 				i++;
 		}
-		/*argv = (char**) calloc(i + 1, sizeof(char*));
-		for(j = 0; j < i; j++)
-			argv[j] = cmd[j];
-		argv[i] = NULL;*/
 
 		fd = open(cmd[i + 1], O_WRONLY | O_TRUNC);
 		if(fd != -1){
@@ -1397,22 +1393,42 @@ void b_alias(const char** cmd, alias* aliases)
 			i++;
 	}
 
-	(aliases->arr[arrSize]).cmdAlias = (char*) calloc(strlen(cmd[i - 1]) + 1, sizeof(char));
-	strcpy((aliases->arr[arrSize]).cmdAlias, cmd[i -1]);
+	(aliases->arr[alias->arrSize]).cmdAlias = (char*) calloc(strlen(cmd[i - 1]) + 1, sizeof(char));
+	strcpy((aliases->arr[alias->arrSize]).cmdAlias, cmd[i -1]);
 
 	opIndex = i;
 	i++;
 	while(cmd[i] != NULL){
-		length += strlen(cmd[i]);
+		length += strlen(cmd[i] + 1);
 		i++;
 	}
 
-	(aliases->arr[arrSize]).cmd = (char*) calloc(strlen(cmd[i - 1]) + 1, sizeof(char));
+	(aliases->arr[alias->arrSize]).cmd = (char*) calloc(length + 1, sizeof(char));
+	i = opIndex + 1;
+	strcpy((aliases->arr[alias->arrSize]).cmd, cmd[i]);
+	i++;
+	while(cmd[i] != NULL){
+		strcat((aliases->arr[alias->arrSize]).cmd, " ");
+		strcat((aliases->arr[alias->arrSize]).cmd, cmd[i]);
+		i++;
+	}
+	aliases->arrSize++;
 }
 
-void b_unalias()
+void b_unalias(const char** cmd, alias* aliases)
 {
-
+	int i;
+	for(i = 0; i < aliases->maxSize; i++){
+		if(strcmp((aliases->arr[i]).cmdAlias), cmd[1] == 0){
+			free((aliases->arr[i]).cmdAlias);
+			free((aliases->arr[i]).cmd);
+			break;
+		}
+		for(i; i < aliases->arrSize; i++){
+			aliases->arr[i] = aliases->arr[i + 1];
+		}
+		aliases->arr[alias->arrSize] = NULL;
+	}
 } 
 
 void printWelcomeScreen()
