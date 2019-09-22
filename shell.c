@@ -18,8 +18,6 @@
 #define ROOT 	"^\/+\.{1,2}*"
 #define CMD		"^[a-zA-Z0-9_-]+$"
 
-int instrCount = 0;
-
 typedef struct
 {
 	char** tokens;
@@ -29,6 +27,25 @@ typedef struct
 	int errCode;
 
 } instruction;
+
+typedef struct
+{
+	char* cmd= NULL;
+	char* cmdAlias= NULL;
+
+} pair;
+
+typedef struct
+{
+	pair* arr[10];
+	int arrSize = 0;
+	const int maxSize = 10;
+
+} alias;
+
+static alias aliases;
+static int instrCount = 0;
+static int exit = 0;
 
 void addToken(instruction* instr, char* tok);
 void printTokens(instruction* instr);
@@ -68,15 +85,11 @@ void testExec(char** tok, int end);
 void b_exit(int instrCount);
 void b_echo(const char** cmd, const int size); 
 void b_cd(const char* path); // if folder is in CWD must append ./ or segfault
-void b_alias();
+void b_alias(const char** cmd, alias* aliases);
 void b_unalias(); 
-
-static cmdCount = 0;
 
 int main()
 {	
-	int exit = 0;
-
 	instruction instr;
 	instr.tokens = NULL;
 	instr.numTokens = 0;
@@ -85,24 +98,19 @@ int main()
 
 	printWelcomeScreen();
 
-	while(exit != 1)
+	while(exit == 0)
 	{
 		getCommand(&instr);
 		addNull(&instr);
 		
-		if (hasStr(&instr, "exit"))
-			exit = 1;
+		/*if (hasStr(&instr, "exit"))
+			exit = 1;*/
 		
 		parseCommand(&instr);
 		if (instr.error != -1)
 			printError(&instr);
-			
-		//inPath(&instr, 0);
 
 		printTokens(&instr);
-		/*if(exit != 1)
-			executeRedirection(instr.tokens, 2);*/
-		//b_echo(instr.tokens);
 		clearInstruction(&instr);
 	}
 	
@@ -1276,7 +1284,7 @@ void executeRedirection(const char** cmd, const int flag){
 
 		fd = open(cmd[inIndex + 1], O_RDONLY);
 		fd2 = open(cmd[outIndex + 1], O_WRONLY | O_TRUNC);
-		if(fd != -1 && fd2!= -1 && (pid = fork()) == 0){
+		if(fd != -1 && fd2 != -1 && (pid = fork()) == 0){
 			close(STDIN_FILENO);
 			dup(fd);
 			close(STDOUT_FILENO);
@@ -1317,7 +1325,7 @@ void executeRedirection(const char** cmd, const int flag){
 
 		fd = open(cmd[inIndex + 1], O_RDONLY);
 		fd2 = open(cmd[outIndex + 1], O_WRONLY | O_TRUNC);
-		if(fd != -1 && fd2!= -1 && (pid = fork()) == 0){
+		if(fd != -1 && fd2 != -1 && (pid = fork()) == 0){
 			close(STDIN_FILENO);
 			dup(fd);
 			close(STDOUT_FILENO);
@@ -1334,7 +1342,24 @@ void executeRedirection(const char** cmd, const int flag){
 	}
 	//echoing to a file
 	else if(flag == 5){
+		while(cmd[i] != NULL){
+			if(strcmp(cmd[i], operatorOut) == 0)
+				break;
+			else
+				i++;
+		}
+		/*argv = (char**) calloc(i + 1, sizeof(char*));
+		for(j = 0; j < i; j++)
+			argv[j] = cmd[j];
+		argv[i] = NULL;*/
 
+		fd = open(cmd[i + 1], O_WRONLY | O_TRUNC);
+		if(fd != -1){
+			close(STDOUT_FILENO);
+			dup(fd);
+			close(fd);
+			b_echo(cmd, i);
+		}
 	}
 	free(argv);
 	instrCount++;
@@ -1344,13 +1369,14 @@ void testExec(char** tok, int end){}
 void b_exit(int instrCount)
 {
 	printf("Exiting...\n");
-	printf("Instruction count: %d\n", instrCount);
+	printf("\tCommands executed: %d\n", instrCount);
+	exit = 1;
 }
 
 void b_echo(const char** cmd, const int size)
 {
 	int i=0;
-	for(i = 1; i <= size; i++)
+	for(i = 1; i < size; i++)
 		printf("%s ", cmd[i]);
 	printf('\n');
 }
@@ -1361,9 +1387,27 @@ void b_cd(const char* path)
 		setenv("PWD", path, 1);
 }
 
-void b_alias()
+void b_alias(const char** cmd, alias* aliases)
 {
+	int i = 0, length = 0, opIndex = 0;
+	while(cmd[i] != NULL){
+		if(strcmp(cmd[i], "="))
+			break;
+		else
+			i++;
+	}
 
+	(aliases->arr[arrSize]).cmdAlias = (char*) calloc(strlen(cmd[i - 1]) + 1, sizeof(char));
+	strcpy((aliases->arr[arrSize]).cmdAlias, cmd[i -1]);
+
+	opIndex = i;
+	i++;
+	while(cmd[i] != NULL){
+		length += strlen(cmd[i]);
+		i++;
+	}
+
+	(aliases->arr[arrSize]).cmd = (char*) calloc(strlen(cmd[i - 1]) + 1, sizeof(char));
 }
 
 void b_unalias()
