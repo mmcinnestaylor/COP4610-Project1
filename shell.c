@@ -219,7 +219,8 @@ void getCommand(instruction* instr)
  */
 void parseCommand(instruction* instr)
 {
-	int i, start = 0, end = 0;
+	int i, start = 0, end = 0, flag = 0;
+
 	for (i = 0; i < instr->numTokens; i++)
 	{
 		end = i;
@@ -233,7 +234,8 @@ void parseCommand(instruction* instr)
 					instr->error = i;
 					instr->errCode = 4;
 					return;
-				}	
+				}
+
 			}
 			else if (strcmp(instr->tokens[i], "<") == 0)
 			{
@@ -252,6 +254,48 @@ void parseCommand(instruction* instr)
 					instr->errCode = 4;
 					return;
 				}
+				else
+				{
+					flag = 1;
+					for (i = i+1; i < instr->numTokens; i++)
+					{
+						end = i;
+						if (instr->tokens[i] == NULL)
+						{
+							i--;
+							break;
+						}
+						else if (match(instr->tokens[i], PATH))
+						{
+							if (!expandPath(instr, i))
+								return;
+							if (isDir(instr->tokens[i]))
+							{
+								instr->error = i;
+								instr->errCode = 2;
+								return;
+							}
+							
+							if (!isFile(instr->tokens[i]))
+							{
+								FILE* file = fopen(instr->tokens[i], "w");
+								if (!file)
+								{
+									instr->error = i;
+									instr->errCode = 6;
+									return;
+								}
+								else
+									fclose(file);
+							}
+						}
+
+						else
+							break;	
+					}
+
+					continue;
+				}
 			}
 			else if (strcmp(instr->tokens[i], "&") == 0)
 			{
@@ -267,11 +311,21 @@ void parseCommand(instruction* instr)
 						continue;
 				}
 			} 
-			//printf("%s %d %s %d %s %d\n", "start:", start, "end:", end, "i:", i );
-			executeCommand(instr->tokens+start, end-start+1);
+
+			switch (flag)
+			{
+				case 1:
+				case 2:
+				case 3:
+				default:
+					executeCommand(instr->tokens+start, end-start+1);
+					break;
+			}
+			
+			flag = 0;
 			start = end + 1;
 		}
-		else if (i == start)
+		else if (i == start)		//assumes first tok is a cmd
 		{
 			if (strcmp(instr->tokens[i], "exit") == 0)
 			{
@@ -298,7 +352,7 @@ void parseCommand(instruction* instr)
 				if (!inPath(instr, i))
 					return;
 			}
-			else
+			else	// check for errors in case first tok of cmd is not valid
 			{
 				if (!expandPath(instr, i))
 					return;
@@ -309,19 +363,26 @@ void parseCommand(instruction* instr)
 					instr->errCode = 2;
 					return;
 				}
+				else if (!isFile(instr->tokens[i]))
+				{
+					instr->error = i;
+					instr->errCode = 0;
+					return;
+				}
 				else if (access(instr->tokens[i], X_OK) != 0)
 				{
 					instr->error = i;
 					instr->errCode = 5;
 					return;	
-				}	
+				}
+					
+					
 			}
 		}
-		else if (match(instr->tokens[i], PATH) || isPath(instr->tokens[i]))
+		else if (match(instr->tokens[i], PATH) || isPath(instr->tokens[i]))	//process path args
 		{
 			if (!expandPath(instr, i))
 					return;
-			
 		}
 	}
 }
@@ -603,17 +664,7 @@ int expandPath(instruction* instr, int indx)
 		}
 
 		if (i+1 == count)
-		{
-			if (!(isDir(temp[0]) || isFile(temp[0])))
-			{
-				instr->error = indx;
-				instr->errCode = 0;
-			}
-			else
-			{
-				size = (strlen(temp[0]) + 1);
-			}
-		}	
+			size = (strlen(temp[0]) + 1);
 	}
 
 	if (instr->error == -1) 
@@ -969,6 +1020,7 @@ const char* getError(int e)
 	else if (e == 3)	return "Command not found";
 	else if (e == 4)	return "Syntax error near unexpected token";
 	else if (e == 5)	return "Permission denied";
+	else if (e == 6)	return "Error creating file";
 	else				return NULL;
 }
 
