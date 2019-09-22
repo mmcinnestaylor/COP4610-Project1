@@ -37,7 +37,7 @@ typedef struct
 
 typedef struct
 {
-	pair* arr[10];
+	pair arr[10];
 	int arrSize;
 	int maxSize;
 
@@ -79,14 +79,12 @@ char* expandVar(char* tok);
 char* getPath();
 void executeCommand(const char **cmd, const int size);
 void executeRedirection(const char** cmd, const int flag);
-void testExec(char** tok, int end);
-
 
 void b_exit(int instrCount);
 void b_echo(const char** cmd, const int size); 
 void b_cd(const char* path); // if folder is in CWD must append ./ or segfault
 void b_alias(const char** cmd, alias* aliases);
-void b_unalias(); 
+void b_unalias(const char** cmd, alias* aliases); 
 
 int main()
 {	
@@ -1394,10 +1392,6 @@ void executeRedirection(const char** cmd, const int flag){
 			else
 				i++;
 		}
-		/*argv = (char**) calloc(i + 1, sizeof(char*));
-		for(j = 0; j < i; j++)
-			argv[j] = cmd[j];
-		argv[i] = NULL;*/
 
 		fd = open(cmd[i + 1], O_WRONLY | O_TRUNC);
 		int temp = dup(STDOUT_FILENO);
@@ -1415,7 +1409,6 @@ void executeRedirection(const char** cmd, const int flag){
 	instrCount++;
 }
 
-void testExec(char** tok, int end){}
 void b_exit(int instrCount)
 {
 	printf("Exiting...\n");
@@ -1447,22 +1440,42 @@ void b_alias(const char** cmd, alias* aliases)
 			i++;
 	}
 
-	aliases->arr[aliases->arrSize]->cmdAlias = (char*) calloc(strlen(cmd[i-1]) + 1, sizeof(char));
-	strcpy(aliases->arr[aliases->arrSize]->cmdAlias, cmd[i-1]);
+	(aliases->arr[aliases->arrSize]).cmdAlias = (char*) calloc(strlen(cmd[i-1]) + 1, sizeof(char));
+	strcpy((aliases->arr[aliases->arrSize]).cmdAlias, cmd[i-1]);
 
 	opIndex = i;
 	i++;
 	while(cmd[i] != NULL){
-		length += strlen(cmd[i]);
+		length += strlen(cmd[i] + 1);
 		i++;
 	}
 
-	aliases->arr[aliases->arrSize]->cmd = (char*) calloc(strlen(cmd[i - 1]) + 1, sizeof(char));
+	(aliases->arr[aliases->arrSize]).cmd = (char*) calloc(length + 1, sizeof(char));
+	i = opIndex + 1;
+	strcpy((aliases->arr[aliases->arrSize]).cmd, cmd[i]);
+	i++;
+	while(cmd[i] != NULL){
+		strcat((aliases->arr[aliases->arrSize]).cmd, " ");
+		strcat((aliases->arr[aliases->arrSize]).cmd, cmd[i]);
+		i++;
+	}
+	aliases->arrSize++;
 }
 
-void b_unalias()
+void b_unalias(const char** cmd, alias* aliases)
 {
-
+	int i;
+	for(i = 0; i < aliases->maxSize; i++){
+		if(strcmp((aliases->arr[i]).cmdAlias), cmd[1] == 0){
+			free((aliases->arr[i]).cmdAlias);
+			free((aliases->arr[i]).cmd);
+			break;
+		}
+		for(i; i < aliases->arrSize; i++){
+			aliases->arr[i] = aliases->arr[i + 1];
+		}
+		aliases->arr[aliases->arrSize] = NULL;
+	}
 } 
 
 void printWelcomeScreen()
