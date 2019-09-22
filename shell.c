@@ -64,8 +64,8 @@ void testExec(char** tok, int end);
 
 
 void b_exit();
-void b_echo();
-void b_cd();
+void b_echo(const char** cmd); 
+void b_cd(const char* path); // if folder is in CWD must append ./ or segfault
 void b_alias();
 void b_unalias(); 
 
@@ -95,11 +95,12 @@ int main()
 		if (instr.error != -1)
 			printError(&instr);
 			
-		inPath(&instr, 0);
+		//inPath(&instr, 0);
 
 		printTokens(&instr);
-		if(exit != 1)
-			executeRedirection(instr.tokens, 2);
+		/*if(exit != 1)
+			executeRedirection(instr.tokens, 2);*/
+		//b_echo(instr.tokens);
 		clearInstruction(&instr);
 	}
 
@@ -342,23 +343,24 @@ void parseCommand(instruction* instr)
 		{
 			if (strcmp(instr->tokens[i], "exit") == 0)
 			{
-				void b_exit();
+				b_exit();
 			}
 			else if (strcmp(instr->tokens[i], "cd") == 0)
 			{
-				void b_cd();
+				expandPath(instr, i + 1);
+				b_cd(instr->tokens[i + 1]);
 			}
 			else if (strcmp(instr->tokens[i], "echo") == 0)
 			{
-				void b_echo();
+				b_echo(instr->tokens);
 			}
 			else if (strcmp(instr->tokens[i], "alias") == 0)
 			{
-				void b_alias();	
+				b_alias();	
 			}
 			else if (strcmp(instr->tokens[i], "unalias") == 0)
 			{
-				void b_unalias(); 
+				b_unalias(); 
 			}
 			else if (strcnt(instr->tokens[i], '/') == 0 && !match(instr->tokens[i], "^[\.]{1,2}"))
 			{
@@ -1210,14 +1212,22 @@ void b_exit()
 
 }
 
-void b_echo()
+void b_echo(const char** cmd)
 {
-
+	int i=0;
+	while(cmd[i] != NULL){
+		if(strcmp(cmd[i], "echo") == 0)
+			break;
+		else
+			i++;
+	}
+	printf("I am echoing: %s\n", cmd[i + 1]);
 }
 
-void b_cd()
+void b_cd(const char* path)
 {
-
+	if(chdir(path) == 0)
+		setenv("PWD", path, 1);
 }
 
 void b_alias()
