@@ -1194,9 +1194,10 @@ void executeCommand(const char **cmd, const int size)
 }
 
 void executeRedirection(const char** cmd, const int flag){
-	int i = 0, j = 0, fd = 0;
+	int i = 0, j = 0, fd = 0, fd2 = 0, inIndex = 0, outIndex = 0, status;
 	char operatorIn[] = "<", operatorOut[] = ">";
 	char** argv = NULL;
+	pid_t pid;
 	
 	//Input
 	if(flag == 1){
@@ -1207,20 +1208,22 @@ void executeRedirection(const char** cmd, const int flag){
 				i++;
 		}
 
-		argv = (char**) calloc(i + 1, sizeof(char));
+		argv = (char**) calloc(i + 1, sizeof(char*));
 		for(j = 0; j < i; j++)
 			argv[j] = cmd[j];
 		argv[i] = NULL;
 		
 		fd = open(cmd[i + 1], O_RDONLY);
-		if(fork() == 0){
+		if(fd != -1 && (pid = fork()) == 0){
 			close(STDIN_FILENO);
 			dup(fd);
 			close(fd);
 			execv(argv[0], argv);
 		}
-		else
+		else{
+			waitpid(pid, &status, 0);
 			close(fd);
+		}
 	}
 	//Output
 	else if(flag == 2){
@@ -1230,69 +1233,108 @@ void executeRedirection(const char** cmd, const int flag){
 			else
 				i++;
 		}
-		argv = (char**) calloc(i + 1, sizeof(char));
+		argv = (char**) calloc(i + 1, sizeof(char*));
 		for(j = 0; j < i; j++)
 			argv[j] = cmd[j];
 		argv[i] = NULL;
 
 		fd = open(cmd[i + 1], O_WRONLY | O_TRUNC);
-		if(fork() == 0){
+		if(fd != -1 && (pid = fork()) == 0){
 			close(STDOUT_FILENO);
 			dup(fd);
 			close(fd);
 			execv(argv[0], argv);
 		}
 		else{
+			waitpid(pid, &status, 0);
 			close(fd);
 		}
 	}
 	//Input + Output
 	else if(flag == 3){
 		while(cmd[i] != NULL){
-			if(strcmp(cmd[i], operatorOut) == 0)
+			if(strcmp(cmd[i], operatorIn) == 0){
+				inIndex = i;
 				break;
+			}
 			else
 				i++;
 		}
-		argv = (char**) calloc(i + 1, sizeof(char));
-		for(j = 0; j < i; j++)
-			argv[j] = cmd[j];
-		argv[i] = NULL;
+		while(cmd[i] != NULL){
+			if(strcmp(cmd[i], operatorOut) == 0){
+				outIndex = i;
+				break;
+			}
+			else
+				i++;
+		}
 
-		fd = open(cmd[i + 1], O_WRONLY | O_TRUNC);
-		if(fork() == 0){
-			close(STDOUT_FILENO);
+		argv = (char**) calloc(inIndex + 1, sizeof(char*));
+		for(j = 0; j < inIndex; j++)
+			argv[j] = cmd[j];
+		argv[inIndex] = NULL;
+
+		fd = open(cmd[inIndex + 1], O_RDONLY);
+		fd2 = open(cmd[outIndex + 1], O_WRONLY | O_TRUNC);
+		if(fd != -1 && fd2!= -1 && (pid = fork()) == 0){
+			close(STDIN_FILENO);
 			dup(fd);
+			close(STDOUT_FILENO);
+			dup(fd2);
 			close(fd);
+			close(fd2);
 			execv(argv[0], argv);
 		}
 		else{
+			waitpid(pid, &status, 0);
 			close(fd);
+			close(fd2);
 		}
 	}	
 	//Output + Input
 	else if(flag == 4){
 		while(cmd[i] != NULL){
-			if(strcmp(cmd[i], operatorOut) == 0)
+			if(strcmp(cmd[i], operatorOut) == 0){
+				outIndex = i;
 				break;
+			}
 			else
 				i++;
 		}
-		argv = (char**) calloc(i + 1, sizeof(char));
-		for(j = 0; j < i; j++)
-			argv[j] = cmd[j];
-		argv[i] = NULL;
+		while(cmd[i] != NULL){
+			if(strcmp(cmd[i], operatorIn) == 0){
+				inIndex = i;
+				break;
+			}
+			else
+				i++;
+		}
 
-		fd = open(cmd[i + 1], O_WRONLY | O_TRUNC);
-		if(fork() == 0){
-			close(STDOUT_FILENO);
+		argv = (char**) calloc(outIndex + 1, sizeof(char*));
+		for(j = 0; j < outIndex; j++)
+			argv[j] = cmd[j];
+		argv[outIndex] = NULL;
+
+		fd = open(cmd[inIndex + 1], O_RDONLY);
+		fd2 = open(cmd[outIndex + 1], O_WRONLY | O_TRUNC);
+		if(fd != -1 && fd2!= -1 && (pid = fork()) == 0){
+			close(STDIN_FILENO);
 			dup(fd);
+			close(STDOUT_FILENO);
+			dup(fd2);
 			close(fd);
+			close(fd2);
 			execv(argv[0], argv);
 		}
 		else{
+			waitpid(pid, &status, 0);
 			close(fd);
+			close(fd2);
 		}
+	}
+	//echoing to a file
+	else if(flag == 5){
+
 	}
 	free(argv);
 	instrCount++;
