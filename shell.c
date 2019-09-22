@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <string.h>
 #include <regex.h>
 #include <sys/types.h>
@@ -16,6 +17,8 @@
 #define PATH	"^[\/]*?[._]*?[a-zA-Z0-9_]+([\/_.-]*?[a-zA-Z0-9_]+)*"
 #define ROOT 	"^\/+\.{1,2}*"
 #define CMD		"^[a-zA-Z0-9_-]+$"
+
+int instrCount = 0;
 
 typedef struct
 {
@@ -58,10 +61,13 @@ int match(const char* tok, char* pattern);
 char* expandVar(char* tok);
 char* getPath();
 void executeCommand(const char **cmd, const int size);
+void executeRedirection(const char** cmd, const int flag);
+void testExec(char** tok, int end);
 
-void b_exit();
-void b_echo();
-void b_cd();
+
+void b_exit(int instrCount);
+void b_echo(const char** cmd, const int size); 
+void b_cd(const char* path); // if folder is in CWD must append ./ or segfault
 void b_alias();
 void b_unalias(); 
 
@@ -90,11 +96,16 @@ int main()
 		parseCommand(&instr);
 		if (instr.error != -1)
 			printError(&instr);
+			
+		//inPath(&instr, 0);
 
 		printTokens(&instr);
+		/*if(exit != 1)
+			executeRedirection(instr.tokens, 2);*/
+		//b_echo(instr.tokens);
 		clearInstruction(&instr);
 	}
-
+	
 	return 0;
 }
 
@@ -384,23 +395,25 @@ void parseCommand(instruction* instr)
 		{
 			if (strcmp(instr->tokens[i], "exit") == 0)
 			{
-				void b_exit();
+				b_exit(instrCount);
 			}
 			else if (strcmp(instr->tokens[i], "cd") == 0)
 			{
-				void b_cd();
+				expandPath(instr, i + 1);
+				b_cd(instr->tokens[i + 1]);
 			}
 			else if (strcmp(instr->tokens[i], "echo") == 0)
 			{
-				void b_echo();
+				// remove 2 & replace by var storing index of last variable to echo
+				b_echo(instr->tokens, 2); 
 			}
 			else if (strcmp(instr->tokens[i], "alias") == 0)
 			{
-				void b_alias();	
+				b_alias();	
 			}
 			else if (strcmp(instr->tokens[i], "unalias") == 0)
 			{
-				void b_unalias(); 
+				b_unalias(); 
 			}
 			else if (strcnt(instr->tokens[i], '/') == 0 && !match(instr->tokens[i], "^[\.]{1,2}"))
 			{
@@ -1128,10 +1141,7 @@ void executeCommand(const char **cmd, const int size)
 	else if (pid == 0)
 	{
 		//Child
-		//printf("The command to be executed is: %s", cmd[0]);
 		execv(argv[0], argv);
-		//printf("Error running command\n");
-		//printf(“Problem executing %s \n”, cmd[0]);
 		exit(1);
 	}
 	else
@@ -1143,21 +1153,133 @@ void executeCommand(const char **cmd, const int size)
 	for (i = 0; i < size; i++)
 		free(argv[i]);
 	free(argv);
+	instrCount++;
 }
 
-void b_exit()
-{
+void executeRedirection(const char** cmd, const int flag){
+	int i = 0, j = 0, fd = 0;
+	char operatorIn[] = "<", operatorOut[] = ">";
+	char** argv = NULL;
+	
+	//Input
+	if(flag == 1){
+		while(cmd[i] != NULL){
+			if(strcmp(cmd[i], operatorIn) == 0)
+				break;
+			else
+				i++;
+		}
 
+		argv = (char**) calloc(i + 1, sizeof(char));
+		for(j = 0; j < i; j++)
+			argv[j] = cmd[j];
+		argv[i] = NULL;
+		
+		fd = open(cmd[i + 1], O_RDONLY);
+		if(fork() == 0){
+			close(STDIN_FILENO);
+			dup(fd);
+			close(fd);
+			execv(argv[0], argv);
+		}
+		else
+			close(fd);
+	}
+	//Output
+	else if(flag == 2){
+		while(cmd[i] != NULL){
+			if(strcmp(cmd[i], operatorOut) == 0)
+				break;
+			else
+				i++;
+		}
+		argv = (char**) calloc(i + 1, sizeof(char));
+		for(j = 0; j < i; j++)
+			argv[j] = cmd[j];
+		argv[i] = NULL;
+
+		fd = open(cmd[i + 1], O_WRONLY | O_TRUNC);
+		if(fork() == 0){
+			close(STDOUT_FILENO);
+			dup(fd);
+			close(fd);
+			execv(argv[0], argv);
+		}
+		else{
+			close(fd);
+		}
+	}
+	//Input + Output
+	else if(flag == 3){
+		while(cmd[i] != NULL){
+			if(strcmp(cmd[i], operatorOut) == 0)
+				break;
+			else
+				i++;
+		}
+		argv = (char**) calloc(i + 1, sizeof(char));
+		for(j = 0; j < i; j++)
+			argv[j] = cmd[j];
+		argv[i] = NULL;
+
+		fd = open(cmd[i + 1], O_WRONLY | O_TRUNC);
+		if(fork() == 0){
+			close(STDOUT_FILENO);
+			dup(fd);
+			close(fd);
+			execv(argv[0], argv);
+		}
+		else{
+			close(fd);
+		}
+	}	
+	//Output + Input
+	else if(flag == 4){
+		while(cmd[i] != NULL){
+			if(strcmp(cmd[i], operatorOut) == 0)
+				break;
+			else
+				i++;
+		}
+		argv = (char**) calloc(i + 1, sizeof(char));
+		for(j = 0; j < i; j++)
+			argv[j] = cmd[j];
+		argv[i] = NULL;
+
+		fd = open(cmd[i + 1], O_WRONLY | O_TRUNC);
+		if(fork() == 0){
+			close(STDOUT_FILENO);
+			dup(fd);
+			close(fd);
+			execv(argv[0], argv);
+		}
+		else{
+			close(fd);
+		}
+	}
+	free(argv);
+	instrCount++;
 }
 
-void b_echo()
+void testExec(char** tok, int end){}
+void b_exit(int instrCount)
 {
-
+	printf("Exiting...\n");
+	printf("Instruction count: %d\n", instrCount);
 }
 
-void b_cd()
+void b_echo(const char** cmd, const int size)
 {
+	int i=0;
+	for(i = 1; i <= size; i++)
+		printf("%s ", cmd[i]);
+	printf('\n');
+}
 
+void b_cd(const char* path)
+{
+	if(chdir(path) == 0)
+		setenv("PWD", path, 1);
 }
 
 void b_alias()
