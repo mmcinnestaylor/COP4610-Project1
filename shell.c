@@ -229,25 +229,73 @@ void parseCommand(instruction* instr)
 			if (instr->tokens[i] == NULL) {}
 			else if (strcmp(instr->tokens[i], "|") == 0)
 			{
+				flag = 2;
 				if (i == 0 || instr->tokens[i+1] == NULL)
 				{
 					instr->error = i;
 					instr->errCode = 4;
 					return;
 				}
+				else
+				{
+					
+				}
 
 			}
 			else if (strcmp(instr->tokens[i], "<") == 0)
 			{
+				flag = 1;
+				io = 1;
 				if (instr->tokens[i+1] == NULL || isOp(instr->tokens[i+1]))
 				{
 					instr->error = i+1;
 					instr->errCode = 4;
 					return;
 				}
+				else
+				{
+					for (i = i+1; i < instr->numTokens; i++)
+					{
+						end = i;
+						if (instr->tokens[i] == NULL)
+						{
+							i--;
+							break;
+						}
+						else if (match(instr->tokens[i], PATH))
+						{
+							if (!expandPath(instr, i))
+								return;
+							if (isDir(instr->tokens[i]))
+							{
+								instr->error = i;
+								instr->errCode = 2;
+								return;
+							}
+							if (!isFile(instr->tokens[i]))
+							{
+								instr->error = i;
+								instr->errCode = 0;
+								return;
+							}
+						}
+						else if (strcmp(instr->tokens[i], ">") == 0)
+						{
+							io = 3;
+							break;
+						}
+						else
+							break;	
+					}
+
+					continue;
+				}	
+
 			}
 			else if (strcmp(instr->tokens[i], ">") == 0)
 			{
+				flag = 1;
+				io = 2;
 				if (instr->tokens[i+1] == NULL || isOp(instr->tokens[i+1]))
 				{
 					instr->error = i+1;
@@ -257,7 +305,6 @@ void parseCommand(instruction* instr)
 				else
 				{
 					flag = 1;
-					io = 2;
 					for (i = i+1; i < instr->numTokens; i++)
 					{
 						end = i;
@@ -303,7 +350,8 @@ void parseCommand(instruction* instr)
 				}
 			}
 			else if (strcmp(instr->tokens[i], "&") == 0)
-			{
+			{	
+				flag = 3;
 				if (i == 0)
 				{
 					if (instr->tokens[i+1] == NULL)
@@ -315,6 +363,7 @@ void parseCommand(instruction* instr)
 					else
 						continue;
 				}
+				
 			} 
 
 			switch (flag)
@@ -322,6 +371,7 @@ void parseCommand(instruction* instr)
 				case 1:
 				case 2:
 				case 3:
+
 				default:
 					executeCommand(instr->tokens+start, end-start+1);
 					break;

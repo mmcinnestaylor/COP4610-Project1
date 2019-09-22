@@ -1,5 +1,5 @@
 CC = gcc -g
-RM = rm -f shell *.o
+RM = rm -f shell *.o output.txt
 
 shell: shell.o
 	$(CC) -o shell shell.o
