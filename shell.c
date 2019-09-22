@@ -219,7 +219,7 @@ void getCommand(instruction* instr)
  */
 void parseCommand(instruction* instr)
 {
-	int i, start = 0, end = 0, flag = 0;
+	int i, start = 0, end = 0, flag = 0, io = 1;
 
 	for (i = 0; i < instr->numTokens; i++)
 	{
@@ -257,6 +257,7 @@ void parseCommand(instruction* instr)
 				else
 				{
 					flag = 1;
+					io = 2;
 					for (i = i+1; i < instr->numTokens; i++)
 					{
 						end = i;
@@ -289,7 +290,11 @@ void parseCommand(instruction* instr)
 									fclose(file);
 							}
 						}
-
+						else if (strcmp(instr->tokens[i], "<") == 0)
+						{
+							io = 4;
+							break;
+						}
 						else
 							break;	
 					}
