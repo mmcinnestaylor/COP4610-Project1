@@ -43,7 +43,7 @@ typedef struct
 
 } alias;
 
-//static alias aliases;
+static alias aliases;
 static int instrCount = 0;
 static int myExit = 0;
 
@@ -437,6 +437,8 @@ void parseCommand(instruction* instr)
 					printf("\n");
 					break;
 				case 3:
+					b_cd(instr->tokens[i]);
+					break;
 					//lmaoooooooo
 				default:
 					executeCommand(instr->tokens+start, end-start+1);
@@ -457,8 +459,7 @@ void parseCommand(instruction* instr)
 			}
 			else if (strcmp(instr->tokens[i], "cd") == 0)
 			{
-				
-				b_cd(instr->tokens[i + 1]);
+				flag = 3;
 			}
 			else if (strcmp(instr->tokens[i], "echo") == 0)
 			{
@@ -1426,8 +1427,17 @@ void b_echo(const char** cmd, const int size)
 
 void b_cd(const char* path)
 {
-	if(chdir(path) == 0)
-		setenv("PWD", path, 1);
+	char* temp = (char*) calloc(strlen(path) + 1, sizeof(char));
+	strcpy(temp, path);
+
+	if (strcmp(path, "~"))
+	{
+		free(temp);
+		temp = expandVar("$HOME\0");
+	}
+
+	if(chdir(temp) == 0)
+		setenv("PWD", temp, 1);
 }
 
 void b_alias(const char** cmd, alias* aliases)
