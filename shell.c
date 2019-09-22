@@ -457,7 +457,7 @@ void parseCommand(instruction* instr)
 			}
 			else if (strcmp(instr->tokens[i], "cd") == 0)
 			{
-				expandPath(instr, i + 1);
+				
 				b_cd(instr->tokens[i + 1]);
 			}
 			else if (strcmp(instr->tokens[i], "echo") == 0)
@@ -1466,16 +1466,17 @@ void b_unalias(const char** cmd, alias* aliases)
 {
 	int i;
 	for(i = 0; i < aliases->maxSize; i++){
-		if(strcmp((aliases->arr[i]).cmdAlias), cmd[1] == 0){
+		if(strcmp((aliases->arr[i]).cmdAlias, cmd[1]) == 0){
 			free((aliases->arr[i]).cmdAlias);
 			free((aliases->arr[i]).cmd);
 			break;
 		}
-		for(i; i < aliases->arrSize; i++){
-			aliases->arr[i] = aliases->arr[i + 1];
-		}
-		aliases->arr[aliases->arrSize] = NULL;
 	}
+
+	for(i; i < aliases->arrSize; i++){
+			aliases->arr[i] = aliases->arr[i + 1];
+	}
+	aliases->arrSize--;
 } 
 
 void printWelcomeScreen()
