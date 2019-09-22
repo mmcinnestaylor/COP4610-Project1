@@ -58,10 +58,18 @@ int strcnt(const char* tok, int x);
 int match(const char* tok, char* pattern);
 char* expandVar(char* tok);
 char* getPath();
-void executeCommand(const char **cmd, const int start);
+void executeCommand(const char **cmd, const int size);
 void executeRedirection(const char** cmd, const int flag);
 void testExec(char** tok, int end);
 
+
+void b_exit();
+void b_echo();
+void b_cd();
+void b_alias();
+void b_unalias(); 
+
+static cmdCount = 0;
 
 int main()
 {	
@@ -70,7 +78,6 @@ int main()
 	instruction instr;
 	instr.tokens = NULL;
 	instr.numTokens = 0;
-	instr.count = 0;
 	instr.error = -1;
 	instr.errCode = -1;
 
@@ -89,6 +96,7 @@ int main()
 			printError(&instr);
 			
 		inPath(&instr, 0);
+
 		printTokens(&instr);
 		if(exit != 1)
 			executeRedirection(instr.tokens, 2);
@@ -219,7 +227,8 @@ void getCommand(instruction* instr)
  */
 void parseCommand(instruction* instr)
 {
-	int i, start = 0, end = 0;
+	int i, start = 0, end = 0, flag = 0, io = 1;
+
 	for (i = 0; i < instr->numTokens; i++)
 	{
 		end = i;
@@ -233,7 +242,8 @@ void parseCommand(instruction* instr)
 					instr->error = i;
 					instr->errCode = 4;
 					return;
-				}	
+				}
+
 			}
 			else if (strcmp(instr->tokens[i], "<") == 0)
 			{
@@ -252,6 +262,53 @@ void parseCommand(instruction* instr)
 					instr->errCode = 4;
 					return;
 				}
+				else
+				{
+					flag = 1;
+					io = 2;
+					for (i = i+1; i < instr->numTokens; i++)
+					{
+						end = i;
+						if (instr->tokens[i] == NULL)
+						{
+							i--;
+							break;
+						}
+						else if (match(instr->tokens[i], PATH))
+						{
+							if (!expandPath(instr, i))
+								return;
+							if (isDir(instr->tokens[i]))
+							{
+								instr->error = i;
+								instr->errCode = 2;
+								return;
+							}
+							
+							if (!isFile(instr->tokens[i]))
+							{
+								FILE* file = fopen(instr->tokens[i], "w");
+								if (!file)
+								{
+									instr->error = i;
+									instr->errCode = 6;
+									return;
+								}
+								else
+									fclose(file);
+							}
+						}
+						else if (strcmp(instr->tokens[i], "<") == 0)
+						{
+							io = 4;
+							break;
+						}
+						else
+							break;	
+					}
+
+					continue;
+				}
 			}
 			else if (strcmp(instr->tokens[i], "&") == 0)
 			{
@@ -267,24 +324,75 @@ void parseCommand(instruction* instr)
 						continue;
 				}
 			} 
-			//printf("%s %d %s %d %s %d\n", "start:", start, "end:", end, "i:", i );
-			executeCommand(instr->tokens+start, end-start+1);
+
+			switch (flag)
+			{
+				case 1:
+				case 2:
+				case 3:
+				default:
+					executeCommand(instr->tokens+start, end-start+1);
+					break;
+			}
+			
+			flag = 0;
 			start = end + 1;
 		}
-		else if (i == 0 || isOp(instr->tokens[i-1]))
+		else if (i == start)		//assumes first tok is a cmd
 		{
-			if (strcnt(instr->tokens[i], '/') == 0 && !match(instr->tokens[i], "^\.{1,2}"))
+			if (strcmp(instr->tokens[i], "exit") == 0)
+			{
+				void b_exit();
+			}
+			else if (strcmp(instr->tokens[i], "cd") == 0)
+			{
+				void b_cd();
+			}
+			else if (strcmp(instr->tokens[i], "echo") == 0)
+			{
+				void b_echo();
+			}
+			else if (strcmp(instr->tokens[i], "alias") == 0)
+			{
+				void b_alias();	
+			}
+			else if (strcmp(instr->tokens[i], "unalias") == 0)
+			{
+				void b_unalias(); 
+			}
+			else if (strcnt(instr->tokens[i], '/') == 0 && !match(instr->tokens[i], "^[\.]{1,2}"))
 			{
 				if (!inPath(instr, i))
 					return;
 			}
-			else
+			else	// check for errors in case first tok of cmd is not valid
 			{
 				if (!expandPath(instr, i))
 					return;
+				
+				if (isDir(instr->tokens[i]))
+				{
+					instr->error = i;
+					instr->errCode = 2;
+					return;
+				}
+				else if (!isFile(instr->tokens[i]))
+				{
+					instr->error = i;
+					instr->errCode = 0;
+					return;
+				}
+				else if (access(instr->tokens[i], X_OK) != 0)
+				{
+					instr->error = i;
+					instr->errCode = 5;
+					return;	
+				}
+					
+					
 			}
 		}
-		else if (match(instr->tokens[i], PATH) || isPath(instr->tokens[i]))
+		else if (match(instr->tokens[i], PATH) || isPath(instr->tokens[i]))	//process path args
 		{
 			if (!expandPath(instr, i))
 					return;
@@ -349,8 +457,10 @@ char* expandVar(char* tok)
 		return NULL;
 	}
 
-	char *tmpVar = (char *) calloc(strlen(getenv(tmpStr)) + 1, sizeof(char));
 	char *var = getenv(tmpStr);
+	if (var == NULL)
+		return NULL;
+	char *tmpVar = (char *) calloc(strlen(var) + 1, sizeof(char));
 	strcpy(tmpVar, var);
 
 	if (tmpStr != NULL)
@@ -437,14 +547,14 @@ int expandPath(instruction* instr, int indx)
 			{
 				temp[i] = (char*) calloc(strlen(pwd) + 1, sizeof(char));
 				strcpy(temp[i], pwd);
+				i++;
 			}
 			else if (match(instr->tokens[indx], ROOT))  // make temp[0] '/' if root
 			{
 				temp[i] = (char*) calloc(2, sizeof(char));
 				strcpy(temp[i], "/");
+				i++;
 			}
-			
-			i++;
 		}
 
 		temp[i] = (char*) calloc(strlen(part) + 1, sizeof(char)); 
@@ -479,39 +589,47 @@ int expandPath(instruction* instr, int indx)
 		}
 		else if (strcmp(temp[i], "..") == 0)
 		{	
-			char *tmp = NULL;
-			size = strlen(temp[0]) + 1;
-			expand = (char*) calloc(size, sizeof(char));
-			strcpy(expand, temp[0]);
-			tmp = strrchr(expand, '/');
-			if (!isRoot(tmp))
-				*tmp = '\0';
-			if (strcnt(expand, '/') == 0)
-				strcpy(expand, "/");
-
-			if (!isDir(expand))
-			{	
-				if (isFile(expand))
-				{
-					instr->error = indx;
-					instr->errCode = 1;
-					i = count;
-				}
-				else
-				{
-					instr->error = indx;
-					instr->errCode = 0;
-					i = count;
-				}
+			if (isRoot(temp[0]))
+			{
+				instr->error = indx;
+				instr->errCode = 0;
+				i = count;
 			}
 			else
 			{
-				temp[0] = (char*) realloc(temp[0], (strlen(expand) + 1) * sizeof(char));
-				strcpy(temp[0], expand);
-			}
+				char *tmp = NULL;
+				size = strlen(temp[0]) + 1;
+				expand = (char*) calloc(size, sizeof(char));
+				strcpy(expand, temp[0]);
+				tmp = strrchr(expand, '/');
+				*tmp = '\0';
+				if (strcnt(expand, '/') == 0)
+					strcpy(expand, "/");
 
-			free(expand);
-			expand = NULL;
+				if (!isDir(expand))
+				{	
+					if (isFile(expand))
+					{
+						instr->error = indx;
+						instr->errCode = 1;
+						i = count;
+					}
+					else
+					{
+						instr->error = indx;
+						instr->errCode = 0;
+						i = count;
+					}
+				}
+				else
+				{
+					temp[0] = (char*) realloc(temp[0], (strlen(expand) + 1) * sizeof(char));
+					strcpy(temp[0], expand);
+				}
+
+				free(expand);
+				expand = NULL;
+			}
 		}
 		else if (strncmp(temp[i], "$", 1) == 0)
 		{
@@ -559,17 +677,7 @@ int expandPath(instruction* instr, int indx)
 		}
 
 		if (i+1 == count)
-		{
-			if (!(isDir(expand) || isFile(expand)))
-			{
-				instr->error = indx;
-				instr->errCode = 0;
-			}
-			else
-			{
-				size = (strlen(temp[0]) + 1);
-			}
-		}	
+			size = (strlen(temp[0]) + 1);
 	}
 
 	if (instr->error == -1) 
@@ -925,6 +1033,7 @@ const char* getError(int e)
 	else if (e == 3)	return "Command not found";
 	else if (e == 4)	return "Syntax error near unexpected token";
 	else if (e == 5)	return "Permission denied";
+	else if (e == 6)	return "Error creating file";
 	else				return NULL;
 }
 
@@ -946,65 +1055,6 @@ char* getPath()
 	}
 
 	return pwd;
-}
-
-
-//BEGINNING OF GIVEN PARSER CODE
-//reallocates instruction array to hold another token
-//allocates for new token within instruction array
-void addToken(instruction* instr, char* tok)
-{
-	//extend token array to accomodate an additional token
-	if (instr->numTokens == 0)
-		instr->tokens = (char**) malloc(sizeof(char*));
-	else
-		instr->tokens = (char**) realloc(instr->tokens, (instr->numTokens+1) * sizeof(char*));
-
-	// check if tok is a path, if so clean it of excess slashes
-	if (isPath(tok))
-		cleanPath(tok);
-
-	//allocate char array for new token in new slot
-	instr->tokens[instr->numTokens] = (char *)malloc((strlen(tok)+1) * sizeof(char));
-	strcpy(instr->tokens[instr->numTokens], tok);
-
-	instr->numTokens++;
-}
-
-void addNull(instruction* instr)
-{
-	//extend token array to accomodate an additional token
-	if (instr->numTokens == 0)
-		instr->tokens = (char**)malloc(sizeof(char*));
-	else
-		instr->tokens = (char**)realloc(instr->tokens, (instr->numTokens+1) * sizeof(char*));
-
-	instr->tokens[instr->numTokens] = (char*) NULL;
-	instr->numTokens++;
-}
-
-void printTokens(instruction* instr)
-{
-	int i;
-	printf("Tokens:\n");
-	for (i = 0; i < instr->numTokens; i++) {
-		if ((instr->tokens)[i] != NULL)
-			printf("%s\n", (instr->tokens)[i]);
-	}
-}
-
-void clearInstruction(instruction* instr)
-{
-	int i;
-	for (i = 0; i < instr->numTokens; i++)
-		free(instr->tokens[i]);
-
-	free(instr->tokens);
-
-	instr->tokens = NULL;
-	instr->numTokens = 0;
-	instr->error = -1;
-	instr->errCode = -1;
 }
 
 void executeCommand(const char **cmd, const int size)
@@ -1154,19 +1204,31 @@ void executeRedirection(const char** cmd, const int flag){
 	free(argv);
 }
 
-void testExec(char** tok, int end)
+void testExec(char** tok, int end){}
+void b_exit()
 {
-	printf("%s\n", "entering test exec function...");
-	
-	int i;
-	
-	for (i = 0; i <= end; i++)
-	{
-		printf("%s ", tok[i]);
-	}
-	printf("\n");
-	
+
 }
+
+void b_echo()
+{
+
+}
+
+void b_cd()
+{
+
+}
+
+void b_alias()
+{
+
+}
+
+void b_unalias()
+{
+
+} 
 
 void printWelcomeScreen()
 {
@@ -1178,4 +1240,64 @@ void printWelcomeScreen()
 	printf("%s\n", "/\\__, `\\\\ \\ \\ \\ \\/\\  __/ \\_\\ \\_ \\_\\ \\_  __/\\ \\__/ ");
 	printf("%s\n", "\\/\\____/ \\ \\_\\ \\_\\ \\____\\/\\____\\/\\____\\/\\_\\ \\____\\");
 	printf("%s\n\n", " \\/___/   \\/_/\\/_/\\/____/\\/____/\\/____/\\/_/\\/____/");
+}
+
+
+
+//BEGINNING OF GIVEN PARSER CODE
+//reallocates instruction array to hold another token
+//allocates for new token within instruction array
+void addToken(instruction* instr, char* tok)
+{
+	//extend token array to accomodate an additional token
+	if (instr->numTokens == 0)
+		instr->tokens = (char**) malloc(sizeof(char*));
+	else
+		instr->tokens = (char**) realloc(instr->tokens, (instr->numTokens+1) * sizeof(char*));
+
+	// check if tok is a path, if so clean it of excess slashes
+	if (isPath(tok))
+		cleanPath(tok);
+
+	//allocate char array for new token in new slot
+	instr->tokens[instr->numTokens] = (char *)malloc((strlen(tok)+1) * sizeof(char));
+	strcpy(instr->tokens[instr->numTokens], tok);
+
+	instr->numTokens++;
+}
+
+void addNull(instruction* instr)
+{
+	//extend token array to accomodate an additional token
+	if (instr->numTokens == 0)
+		instr->tokens = (char**)malloc(sizeof(char*));
+	else
+		instr->tokens = (char**)realloc(instr->tokens, (instr->numTokens+1) * sizeof(char*));
+
+	instr->tokens[instr->numTokens] = (char*) NULL;
+	instr->numTokens++;
+}
+
+void printTokens(instruction* instr)
+{
+	int i;
+	printf("Tokens:\n");
+	for (i = 0; i < instr->numTokens; i++) {
+		if ((instr->tokens)[i] != NULL)
+			printf("%s\n", (instr->tokens)[i]);
+	}
+}
+
+void clearInstruction(instruction* instr)
+{
+	int i;
+	for (i = 0; i < instr->numTokens; i++)
+		free(instr->tokens[i]);
+
+	free(instr->tokens);
+
+	instr->tokens = NULL;
+	instr->numTokens = 0;
+	instr->error = -1;
+	instr->errCode = -1;
 }
