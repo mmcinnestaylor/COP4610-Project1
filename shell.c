@@ -145,8 +145,11 @@ void printError(instruction* instr)
  */
 void getCommand(instruction* instr)
 {
+		int size = 100;
 		char* token = NULL;
 		char* temp = NULL;
+		char* temp2 = NULL, temp3 = NULL;
+		char* expanded = NULL;
 		
 		printf("%s@%s : %s > ", getenv("USER"), getenv("HOSTNAME"), getenv("PWD"));
 		//printf("Please enter an instruction: ");
@@ -159,7 +162,23 @@ void getCommand(instruction* instr)
 			if (getIndex(token) != -1)
 			{
 				int i = getIndex(token), size, pos1, pos2;
-				pos1 = ftell(stdin);
+				expanded = (char*)calloc(strlen((aliases.arr[i]).cmd) + 1, sizeof(char));
+				strcpy(expanded, (aliases.arr[i]).cmd);
+
+				temp2 = (char*)calloc(size, sizeof(char));
+				while(!feof(stdin)){
+					fgets(temp2, 100, stdin);
+					if(!feof(stdin)){
+						temp3 = temp2;
+						size += 100;
+						temp2 = (char*)calloc(size, sizeof(char));
+						strcpy(temp2, temp3);
+						free(temp3);
+					}
+				}
+				fputs(temp2, stdin);
+				free(free temp2);
+				/*pos1 = ftell(stdin);
 				fseek(stdin, 0, SEEK_END);
 				pos2 = ftell(stdin);
 				fseek(stdin, pos1, SEEK_SET);
@@ -171,10 +190,9 @@ void getCommand(instruction* instr)
 				token = (char*) calloc(strlen(aliases.arr[i].cmd) + 1, sizeof(char));
 				strcpy(token, aliases.arr[i].cmd);
 				fputs(token, stdin);
-				fwrite((FILE*)temp, sizeof(char), size, stdin);
+				fwrite((FILE*)temp, sizeof(char), size, stdin);*/
 			}
-			
-			
+			scanf("%ms", &token);
 			temp = (char *)malloc((strlen(token) + 1) * sizeof(char));
 
 			int i;
@@ -1523,7 +1541,27 @@ void printWelcomeScreen()
 	printf("%s\n\n", " \\/___/   \\/_/\\/_/\\/____/\\/____/\\/____/\\/_/\\/____/");
 }
 
-// this function laid pipe in me if you catch my drift
+/*
+ *	layPipe
+ * 	>	instruction* instr_ptr 
+ * 	:: 	void
+ * 
+ * 	Attempts to handle piping
+ * 	Performs parsing on instr
+ * 	alllocates memory for commands
+ * 	
+ * 	KNOWN ISSUES
+ *  
+ *
+ * 	doesn't work with all commands when using one but works with some
+ * 	double doesn't work completely but if you 
+ * 	include the test prints you can get an idea of what was
+ * 	going wrong. The commands should be hitting in the
+ * 	right places but it just wasn't behaving as expected.
+ *
+ * 	We tried a lot of different approaches but fekk short here.
+ * 
+ */
 void layPipe(instruction* instr_ptr) 
 {
 
@@ -1568,13 +1606,13 @@ void layPipe(instruction* instr_ptr)
 
 	if (numPipes > 2)
 	{
-		printf("Too many pipes... Maximum of [2] pipes supported.\n");
+		//printf("Too many pipes... Maximum of [2] pipes supported.\n");
 		return;
 	}
 
 	if (numPipes == 0)
 	{
-		printf("No pipes encontered... returning...\n");
+		//printf("No pipes encontered... returning...\n");
 		return;
 	}
 
@@ -1591,7 +1629,7 @@ void layPipe(instruction* instr_ptr)
 		{
 			if (i == pipeOneIndex)
 			{
-				printf("%s\n", "finishing things off with a null");
+				//printf("%s\n", "finishing things off with a null");
 				cmd1[i] = (char*) NULL;
 			}
 			else
@@ -1599,7 +1637,7 @@ void layPipe(instruction* instr_ptr)
 				//printf("%s\n", "adding shit to cmd one");
 				cmd1[i] = (char*) calloc(strlen(instr_ptr->tokens[i]) + 1, sizeof(char));
 				strcpy(cmd1[i], instr_ptr->tokens[i]);
-				printf("cmd1 %d: %s\n", i, cmd1[i]);
+				//printf("cmd1 %d: %s\n", i, cmd1[i]);
 			}
 			cmd_1_size+=1;
 		}
@@ -1609,15 +1647,15 @@ void layPipe(instruction* instr_ptr)
 		{
 			if (i+1 == size)
 			{
-				printf("%s\n", "finishing things off with a null");
+				//printf("%s\n", "finishing things off with a null");
 				cmd2[i-cmd_1_size] = (char*) NULL;
 			}
 			else
 			{
-				printf("%s\n", "adding shit to cmd TWO BBY");
+				//printf("%s\n", "adding shit to cmd TWO BBY");
 				cmd2[i-cmd_1_size] = (char*) calloc(strlen(instr_ptr->tokens[i]) + 1, sizeof(char));
 				strcpy(cmd2[i-cmd_1_size], instr_ptr->tokens[i]);
-				printf("cmd2 %d: %s\n", i-cmd_1_size, cmd2[i-cmd_1_size]);
+				//printf("cmd2 %d: %s\n", i-cmd_1_size, cmd2[i-cmd_1_size]);
 			}
 			cmd_2_size+=1;
 		}
@@ -1631,7 +1669,7 @@ void layPipe(instruction* instr_ptr)
 		{
 			if (i == pipeOneIndex)
 			{
-				printf("%s\n", "finishing things off with a null");
+				//printf("%s\n", "finishing things off with a null");
 				cmd1[i] = (char*) NULL;
 			}
 			else
@@ -1639,7 +1677,7 @@ void layPipe(instruction* instr_ptr)
 				//printf("%s\n", "adding shit to cmd one");
 				cmd1[i] = (char*) calloc(strlen(instr_ptr->tokens[i]) + 1, sizeof(char));
 				strcpy(cmd1[i], instr_ptr->tokens[i]);
-				printf("cmd1 %d: %s\n", i, cmd1[i]);
+				//printf("cmd1 %d: %s\n", i, cmd1[i]);
 			}
 			cmd_1_size+=1;
 		}
@@ -1650,15 +1688,15 @@ void layPipe(instruction* instr_ptr)
 		{
 			if (i == pipeTwoIndex)
 			{
-				printf("%s\n", "finishing things off with a null");
+				//printf("%s\n", "finishing things off with a null");
 				cmd2[i-cmd_1_size] = (char*) NULL;
 			}
 			else
 			{
-				printf("%s\n", "adding shit to cmd TWO BBY");
+				//printf("%s\n", "adding shit to cmd TWO BBY");
 				cmd2[i-cmd_1_size] = (char*) calloc(strlen(instr_ptr->tokens[i]) + 1, sizeof(char));
 				strcpy(cmd2[i-cmd_1_size], instr_ptr->tokens[i]);
-				printf("cmd2 %d: %s\n", i-cmd_1_size, cmd2[i-cmd_1_size]);
+				//printf("cmd2 %d: %s\n", i-cmd_1_size, cmd2[i-cmd_1_size]);
 			}
 			cmd_2_size+=1;
 		}
@@ -1668,32 +1706,28 @@ void layPipe(instruction* instr_ptr)
 		{
 			if (i+1 == size)
 			{
-				printf("%s\n", "finishing things off with a null");
+				//printf("%s\n", "finishing things off with a null");
 				cmd3[i-(cmd_1_size+cmd_2_size+1)] = (char*) NULL;
 			}
 			else
 			{
-				printf("%s\n", "adding shit to cmd THREE YEE");
+				//printf("%s\n", "adding shit to cmd THREE YEE");
 				cmd3[i-(cmd_1_size+cmd_2_size)] = (char*) calloc(strlen(instr_ptr->tokens[i]) + 1, sizeof(char));
 				strcpy(cmd3[i-(cmd_1_size+cmd_2_size)], instr_ptr->tokens[i]);
-				printf("cmd3 %d: %s\n", i-(cmd_1_size+cmd_2_size), cmd3[i-(cmd_1_size+cmd_2_size)]);
+				//printf("cmd3 %d: %s\n", i-(cmd_1_size+cmd_2_size), cmd3[i-(cmd_1_size+cmd_2_size)]);
 			}
 			cmd_3_size+=1;
 		}
 
 	}
 
-
-	printf("Num pipes: %d   Size: %d\n", numPipes, size);
-	printf("Pipe One Index: %d   Pipe Two Index: %d\n", pipeOneIndex, pipeTwoIndex);
-	printf("cmd_1_size: %d   cmd_2_size: %d   cmd_3_size: %d\n", cmd_1_size, cmd_2_size, cmd_3_size);
-
-
-	// HANDLE ACTUAL PIPING HERE
-	printf("\n\nPIPING STARTS HERE\n~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~\n\n");
+	// printf("Num pipes: %d   Size: %d\n", numPipes, size);
+	// printf("Pipe One Index: %d   Pipe Two Index: %d\n", pipeOneIndex, pipeTwoIndex);
+	// printf("cmd_1_size: %d   cmd_2_size: %d   cmd_3_size: %d\n", cmd_1_size, cmd_2_size, cmd_3_size);
 
 
-
+	// // HANDLE ACTUAL PIPING HERE
+	// printf("\n\nPIPING STARTS HERE\n~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~\n\n");
 
 	// handle a single pipe
 	if(numPipes == 1)
@@ -1701,7 +1735,6 @@ void layPipe(instruction* instr_ptr)
 		int status;
 		pid_t pid, pid2, pid3;
 		int fd[2];
-		printf("Attempting to fork\n");
 		
 		if (pid = fork() == 0)
 		{
@@ -1711,7 +1744,7 @@ void layPipe(instruction* instr_ptr)
 			if (pid = fork() == 0)
 			{
 				//cmd1 (writer)
-				printf("in cmd1 (writer)\n");
+				//printf("in cmd1 (writer)\n");
 				close(STDOUT_FILENO);
 				dup(fd[1]);
 				close(fd[0]);
@@ -1723,7 +1756,7 @@ void layPipe(instruction* instr_ptr)
 			{				
 				//cmd1 (writer)
 				waitpid(pid, &status, 0);
-				printf("in cmd2 (reader)\n");
+				//printf("in cmd2 (reader)\n");
 				close(STDIN_FILENO);
 				dup(fd[0]);
 				close(fd[0]);
@@ -1735,7 +1768,7 @@ void layPipe(instruction* instr_ptr)
 		else
 		{
 			// parent (shell)
-			printf("in big else\n");
+			//printf("in big else\n");
 			waitpid(pid, &status, 0);
 			close(fd);
 		}
@@ -1750,7 +1783,7 @@ void layPipe(instruction* instr_ptr)
 		pid_t pid, pid2, pid3;
 		int fd[2];
 		int fd2[2];
-		printf("Attempting to double pipe\n");
+		//printf("Attempting to double pipe\n");
 
 		//pipe(fd);
 		//pipe(fd2);
@@ -1761,7 +1794,7 @@ void layPipe(instruction* instr_ptr)
 			pipe(fd);
 			if (pid = fork() == 0)
 			{
-				printf("in cmd1 (writer)\n");
+				//printf("in cmd1 (writer)\n");
 				close(STDOUT_FILENO);
 				
 				dup(fd[1]);
@@ -1771,24 +1804,24 @@ void layPipe(instruction* instr_ptr)
 				// close(fd2[0]);
 				// close(fd2[1]);
 				// execute command
-				printf("executing 1\n");
+				//printf("executing 1\n");
 				execv(cmd1[0], cmd1);
 			}
 			else
 			{			
 
 				//waitpid(pid, &status, 0);	
-				//pipe(fd2);
+				pipe(fd2);
 				if (fork() == 0)
 				{
 					//mapipe(fd2);
 					waitpid(pid, &status, 0);	
-					printf("in cmd2 (reader/writer)\n");
+					//printf("in cmd2 (reader/writer)\n");
 					close(STDIN_FILENO);
 					close(STDOUT_FILENO);
 
 					dup(fd[0]);
-					pipe(fd2);
+					//pipe(fd2);
 					dup(fd2[1]);
 
 					close(fd[0]);
@@ -1797,23 +1830,15 @@ void layPipe(instruction* instr_ptr)
 					close(fd2[1]);
 
 					// execute command
-					printf("executing 2\n");
+					//printf("executing 2\n");
 					execv(cmd2[0], cmd2);
 				}
 				else
 				{		
-
-					// for(i=0;i<3;i++)
-					// {
-					// 	waitpid(pid2, &status, 0);
-					// 	waitpid(pid, &status, 0);
-					// 	waitpid(pid3, &status, 0);
-					// }
-
 					waitpid(pid, &status, 0);
 					//waitpid(pid, &status, 0);
 
-					printf("in cmd3 (reader)\n");
+					//printf("in cmd3 (reader)\n");
 					//close(STDIN_FILENO);
 
 					dup(fd2[0]);
@@ -1823,9 +1848,9 @@ void layPipe(instruction* instr_ptr)
 					close(fd2[0]);
 					close(fd2[1]);	
 					// execute command
-					printf("executing 3\n");
+					//printf("executing 3\n");
 					execv(cmd3[0], cmd3);
-					printf("POST 3\n");
+					//printf("POST 3\n");
 				}
 			}
 
@@ -1837,7 +1862,7 @@ void layPipe(instruction* instr_ptr)
 			waitpid(pid, &status, 0);
 			waitpid(pid, &status, 0);
 			// parent (shell)
-			printf("in big else\n");
+			//printf("in big else\n");
 			close(fd);
 			close(fd2);
 			//waitpid(pid, &status, 0);
@@ -1845,11 +1870,7 @@ void layPipe(instruction* instr_ptr)
 
 		}
 	}		
-
-
-
-
-	printf("\n\n~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~\nPIPING ENDS HERE\n\n");
+	//printf("\n\n~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~\nPIPING ENDS HERE\n\n");
 
 	//free all allocated memory
 	for (i = 0; i < cmd_1_size; i++)
