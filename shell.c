@@ -80,6 +80,7 @@ char* getPath();
 void executeCommand(const char **cmd, const int size);
 void executeRedirection(const char** cmd, const int flag);
 void clearAliases();
+int getIndex(const char* tok);
 void layPipe(instruction* instr_ptr);
 
 void b_exit(int instrCount);
@@ -1407,6 +1408,15 @@ void clearAliases(){
 		free((aliases.arr[i]).cmdAlias);
 		free((aliases.arr[i]).cmd);
 	}
+}
+
+int getIndex(const char* tok){
+	int i = 0;
+	for(i; i < aliases.arrSize; i++){
+		if(strcmp(tok, (aliases.arr[i]).cmdAlias) == 0)
+			return i;
+	}
+	return -1;
 }
 
 
