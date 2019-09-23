@@ -437,7 +437,7 @@ void parseCommand(instruction* instr)
 					}	
 					else
 					{
-						b_cd(instr->tokens[i]);
+						b_cd(instr->tokens[i-1]);
 						return;
 					}
 				default:
@@ -528,9 +528,10 @@ void parseCommand(instruction* instr)
 		}
 		else if (match(instr->tokens[i], PATH) || isPath(instr->tokens[i]))	//process path args
 		{
-			if (strcnt(instr->tokens[i], '/') > 0 && !expandPath(instr, i))
+			if (strcnt(instr->tokens[i], '/') > 0 || flag == 3) 
 			{
-				return;
+				if (!expandPath(instr, i))
+					return;
 			
 				if (!(isDir(instr->tokens[i]) || isFile(instr->tokens[i])))
 				{
@@ -815,7 +816,7 @@ int expandPath(instruction* instr, int indx)
 					strcat(expand, "/");
 				strcat(expand, temp[i]);
 				
-				temp[0] = (char*) realloc(temp[0], (strlen(expand) + 1) * sizeof(char));
+				temp[0] = (char*) realloc(temp[0], (size + 1) * sizeof(char));
 				strcpy(temp[0], expand);
 
 				free(expand);
@@ -912,7 +913,7 @@ int isRoot(const char* tok)
 int isPath(const char* tok)
 {	
 	if (tok != NULL)
-		if (match(tok, "^(/?[^/&|<>-]*)+/?$"))
+		if (match(tok, "^(/?[^/&|<>]*)+/?$"))
 			return 1;
 
 	return 0;
@@ -1451,7 +1452,7 @@ void b_cd(const char* path)
 	char* temp = (char*) calloc(strlen(path) + 1, sizeof(char));
 	strcpy(temp, path);
 
-	if (strcmp(path, "~"))
+	if (strcmp(path, "~") == 0)
 	{
 		free(temp);
 		temp = expandVar("$HOME\0");
