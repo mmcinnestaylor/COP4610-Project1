@@ -96,7 +96,7 @@ int main()
 	instr.error = -1;
 	instr.errCode = -1;
 
-	aliases.maxSize = 9;
+	aliases.maxSize = 10;
 	aliases.arrSize = 0;
 
 	printWelcomeScreen();
@@ -105,9 +105,6 @@ int main()
 	{
 		getCommand(&instr);
 		addNull(&instr);
-		
-		/*if (hasStr(&instr, "exit"))
-			exit = 1;*/
 		
 		parseCommand(&instr);
 		if (instr.error != -1)
@@ -120,34 +117,6 @@ int main()
 	return 0;
 }
 
-/*
- *	Run Tests
- * 	>	instruction* 
- * 	:: 	void
- * 		
- * 	* iterate through intructions and run needed tests accordingly
- * 
- */
-void runTests(instruction* instr)
-{
-	printf("%s:\n\n", "Tests");
-
-	int i;
-	for (i = 0; i < instr->numTokens; i++)
-	{	
-		if (instr->tokens[i] != NULL)
-		{
-			if (isPath(instr->tokens[i]))						// expandPath testing
-			{
-				printf("Path before: %s\n", instr->tokens[i]);
-				expandPath(instr, i);
-				printf("Path after: %s\n", instr->tokens[i]);
-			}
-		}
-	}
-
-	printf("\n");
-}
 
 void printError(instruction* instr)
 {
@@ -448,11 +417,7 @@ void parseCommand(instruction* instr)
 					executeRedirection(instr->tokens+start, io);
 					break;
 				case 2:
-					for (j = 0; j < end-start+1; j++)
-						printf("%s ", instr->tokens+j);
-					
-					printf("\n");
-					break;
+					layPipe(instr->tokens);
 				case 3:
 					if (i == 1)
 					{
