@@ -1522,7 +1522,27 @@ void printWelcomeScreen()
 	printf("%s\n\n", " \\/___/   \\/_/\\/_/\\/____/\\/____/\\/____/\\/_/\\/____/");
 }
 
-// this function laid pipe in me if you catch my drift
+/*
+ *	layPipe
+ * 	>	instruction* instr_ptr 
+ * 	:: 	void
+ * 
+ * 	Attempts to handle piping
+ * 	Performs parsing on instr
+ * 	alllocates memory for commands
+ * 	
+ * 	KNOWN ISSUES
+ *  
+ *
+ * 	doesn't work with all commands when using one but works with some
+ * 	double doesn't work completely but if you 
+ * 	include the test prints you can get an idea of what was
+ * 	going wrong. The commands should be hitting in the
+ * 	right places but it just wasn't behaving as expected.
+ *
+ * 	We tried a lot of different approaches but fekk short here.
+ * 
+ */
 void layPipe(instruction* instr_ptr) 
 {
 
