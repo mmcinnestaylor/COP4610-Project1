@@ -156,13 +156,23 @@ void getCommand(instruction* instr)
 		{
 			scanf("%ms", &token);
 			//scans for next token and allocates token var to size of scanned token
-			//if (getIndex(token) != -1)
-			//{
-			//	int i = getIndex(token);
-			//	free(token);
-			//	token = (char*) calloc(strlen(aliases.arr[i].cmd) + 1, sizeof(char));
-			//	strcpy(token, aliases.arr[i].cmd);
-			//}
+			if (getIndex(token) != -1)
+			{
+				int i = getIndex(token), size, pos1, pos2;
+				pos1 = ftell(stdin);
+				fseek(stdin, 0, SEEK_END);
+				pos2 = ftell(stdin);
+				fseek(stdin, pos1, SEEK_SET);
+				size = pos2 - pos1;
+				FILE* temp = (FILE*) calloc(size + 1, sizeof(char));
+				fread((FILE*)temp, sizeof(char), size, stdin);
+				
+				free(token);
+				token = (char*) calloc(strlen(aliases.arr[i].cmd) + 1, sizeof(char));
+				strcpy(token, aliases.arr[i].cmd);
+				fputs(token, stdin);
+				fwrite((FILE*)temp, sizeof(char), size, stdin);
+			}
 			
 			
 			temp = (char *)malloc((strlen(token) + 1) * sizeof(char));
