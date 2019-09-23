@@ -43,7 +43,7 @@ typedef struct
 
 } alias;
 
-//static alias aliases;
+static alias aliases;
 static int instrCount = 0;
 static int myExit = 0;
 
@@ -81,6 +81,7 @@ void executeCommand(const char **cmd, const int size);
 void executeRedirection(const char** cmd, const int flag);
 void clearAliases();
 int getIndex(const char* tok);
+void layPipe(instruction* instr_ptr);
 
 void b_exit(int instrCount);
 void b_echo(const char** cmd, const int size); 
@@ -439,6 +440,8 @@ void parseCommand(instruction* instr)
 					printf("\n");
 					break;
 				case 3:
+					b_cd(instr->tokens[i]);
+					break;
 					//lmaoooooooo
 				default:
 					executeCommand(instr->tokens+start, end-start+1);
@@ -459,8 +462,7 @@ void parseCommand(instruction* instr)
 			}
 			else if (strcmp(instr->tokens[i], "cd") == 0)
 			{
-				
-				b_cd(instr->tokens[i + 1]);
+				flag = 3;
 			}
 			else if (strcmp(instr->tokens[i], "echo") == 0)
 			{
@@ -1447,8 +1449,17 @@ void b_echo(const char** cmd, const int size)
 
 void b_cd(const char* path)
 {
-	if(chdir(path) == 0)
-		setenv("PWD", path, 1);
+	char* temp = (char*) calloc(strlen(path) + 1, sizeof(char));
+	strcpy(temp, path);
+
+	if (strcmp(path, "~"))
+	{
+		free(temp);
+		temp = expandVar("$HOME\0");
+	}
+
+	if(chdir(temp) == 0)
+		setenv("PWD", temp, 1);
 }
 
 void b_alias(const char** cmd)
@@ -1511,6 +1522,351 @@ void printWelcomeScreen()
 	printf("%s\n", "\\/\\____/ \\ \\_\\ \\_\\ \\____\\/\\____\\/\\____\\/\\_\\ \\____\\");
 	printf("%s\n\n", " \\/___/   \\/_/\\/_/\\/____/\\/____/\\/____/\\/_/\\/____/");
 }
+
+// this function laid pipe in me if you catch my drift
+void layPipe(instruction* instr_ptr) 
+{
+
+	int i;
+	int numPipes = 0;
+	int size = instr_ptr->numTokens;
+	int cmd_1_size = 0;
+	int cmd_2_size = 0;
+	int cmd_3_size = 0;
+	int pipeEncountered = 0;
+
+	int pipeOneIndex = 0;
+	int pipeTwoIndex = 0;
+
+
+	// get num pipes
+	for (i = 0; i < instr_ptr->numTokens; i++) 
+	{ 
+		if ( (instr_ptr->tokens)[i] != NULL) 
+		{	 
+			if( ( strcmp((instr_ptr->tokens)[i],"|") == 0) )
+			{ 
+				numPipes+=1;
+
+				// if pipe has been encountered,
+				// store location of pipe
+				if (numPipes > 0)
+				{
+					if (pipeEncountered == 0)
+						pipeOneIndex = i;
+					if (pipeEncountered == 1)
+						pipeTwoIndex = i;
+
+					pipeEncountered+=1;
+				}
+			}
+
+		} 
+		// else
+		// 	printf("%s\n", "null encountered");
+	} 
+
+	if (numPipes > 2)
+	{
+		printf("Too many pipes... Maximum of [2] pipes supported.\n");
+		return;
+	}
+
+	if (numPipes == 0)
+	{
+		printf("No pipes encontered... returning...\n");
+		return;
+	}
+
+	// allocate memory	
+	char** cmd1 = (char**) calloc(size, sizeof(char*));
+	char** cmd2 = (char**) calloc(size, sizeof(char*));
+	char** cmd3 = (char**) calloc(size, sizeof(char*));
+
+	// handle cammand copies for one pipe
+	if (numPipes == 1)
+	{
+		// gotta populate cmd1 
+		for (i = 0; i <= pipeOneIndex; i++)
+		{
+			if (i == pipeOneIndex)
+			{
+				printf("%s\n", "finishing things off with a null");
+				cmd1[i] = (char*) NULL;
+			}
+			else
+			{
+				//printf("%s\n", "adding shit to cmd one");
+				cmd1[i] = (char*) calloc(strlen(instr_ptr->tokens[i]) + 1, sizeof(char));
+				strcpy(cmd1[i], instr_ptr->tokens[i]);
+				printf("cmd1 %d: %s\n", i, cmd1[i]);
+			}
+			cmd_1_size+=1;
+		}
+
+		// gotta populate cmd2
+		for (i = pipeOneIndex+1; i < size; i++)
+		{
+			if (i+1 == size)
+			{
+				printf("%s\n", "finishing things off with a null");
+				cmd2[i-cmd_1_size] = (char*) NULL;
+			}
+			else
+			{
+				printf("%s\n", "adding shit to cmd TWO BBY");
+				cmd2[i-cmd_1_size] = (char*) calloc(strlen(instr_ptr->tokens[i]) + 1, sizeof(char));
+				strcpy(cmd2[i-cmd_1_size], instr_ptr->tokens[i]);
+				printf("cmd2 %d: %s\n", i-cmd_1_size, cmd2[i-cmd_1_size]);
+			}
+			cmd_2_size+=1;
+		}
+
+	}
+	//handle command copies for two pipes
+	else
+	{
+		// gotta populate cmd1 
+		for (i = 0; i <= pipeOneIndex; i++)
+		{
+			if (i == pipeOneIndex)
+			{
+				printf("%s\n", "finishing things off with a null");
+				cmd1[i] = (char*) NULL;
+			}
+			else
+			{
+				//printf("%s\n", "adding shit to cmd one");
+				cmd1[i] = (char*) calloc(strlen(instr_ptr->tokens[i]) + 1, sizeof(char));
+				strcpy(cmd1[i], instr_ptr->tokens[i]);
+				printf("cmd1 %d: %s\n", i, cmd1[i]);
+			}
+			cmd_1_size+=1;
+		}
+
+		printf("\n");
+		// gotta populate cmd2
+		for (i = pipeOneIndex+1; i <= pipeTwoIndex; i++)
+		{
+			if (i == pipeTwoIndex)
+			{
+				printf("%s\n", "finishing things off with a null");
+				cmd2[i-cmd_1_size] = (char*) NULL;
+			}
+			else
+			{
+				printf("%s\n", "adding shit to cmd TWO BBY");
+				cmd2[i-cmd_1_size] = (char*) calloc(strlen(instr_ptr->tokens[i]) + 1, sizeof(char));
+				strcpy(cmd2[i-cmd_1_size], instr_ptr->tokens[i]);
+				printf("cmd2 %d: %s\n", i-cmd_1_size, cmd2[i-cmd_1_size]);
+			}
+			cmd_2_size+=1;
+		}
+
+		printf("\n");
+		for (i = pipeTwoIndex+1; i < size; i++)
+		{
+			if (i+1 == size)
+			{
+				printf("%s\n", "finishing things off with a null");
+				cmd3[i-(cmd_1_size+cmd_2_size+1)] = (char*) NULL;
+			}
+			else
+			{
+				printf("%s\n", "adding shit to cmd THREE YEE");
+				cmd3[i-(cmd_1_size+cmd_2_size)] = (char*) calloc(strlen(instr_ptr->tokens[i]) + 1, sizeof(char));
+				strcpy(cmd3[i-(cmd_1_size+cmd_2_size)], instr_ptr->tokens[i]);
+				printf("cmd3 %d: %s\n", i-(cmd_1_size+cmd_2_size), cmd3[i-(cmd_1_size+cmd_2_size)]);
+			}
+			cmd_3_size+=1;
+		}
+
+	}
+
+
+	printf("Num pipes: %d   Size: %d\n", numPipes, size);
+	printf("Pipe One Index: %d   Pipe Two Index: %d\n", pipeOneIndex, pipeTwoIndex);
+	printf("cmd_1_size: %d   cmd_2_size: %d   cmd_3_size: %d\n", cmd_1_size, cmd_2_size, cmd_3_size);
+
+
+	// HANDLE ACTUAL PIPING HERE
+	printf("\n\nPIPING STARTS HERE\n~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~\n\n");
+
+
+
+
+	// handle a single pipe
+	if(numPipes == 1)
+	{
+		int status;
+		pid_t pid, pid2, pid3;
+		int fd[2];
+		printf("Attempting to fork\n");
+		
+		if (pid = fork() == 0)
+		{
+			// child (cmd1 | cmd2)
+			pipe(fd);
+
+			if (pid = fork() == 0)
+			{
+				//cmd1 (writer)
+				printf("in cmd1 (writer)\n");
+				close(STDOUT_FILENO);
+				dup(fd[1]);
+				close(fd[0]);
+				close(fd[1]);
+				// execute command
+				execv(cmd1[0], cmd1);
+			}
+			else
+			{				
+				//cmd1 (writer)
+				waitpid(pid, &status, 0);
+				printf("in cmd2 (reader)\n");
+				close(STDIN_FILENO);
+				dup(fd[0]);
+				close(fd[0]);
+				close(fd[1]);
+				// execute command
+				execv(cmd2[0], cmd2);
+			}
+		}
+		else
+		{
+			// parent (shell)
+			printf("in big else\n");
+			waitpid(pid, &status, 0);
+			close(fd);
+		}
+
+
+	}
+
+	// handle a double pipe
+	else
+	{
+		int status;
+		pid_t pid, pid2, pid3;
+		int fd[2];
+		int fd2[2];
+		printf("Attempting to double pipe\n");
+
+		//pipe(fd);
+		//pipe(fd2);
+
+		if (pid = fork() == 0)
+		{
+			// child (cmd1 | cmd2)
+			pipe(fd);
+			if (pid = fork() == 0)
+			{
+				printf("in cmd1 (writer)\n");
+				close(STDOUT_FILENO);
+				
+				dup(fd[1]);
+
+				close(fd[0]);
+				close(fd[1]);
+				// close(fd2[0]);
+				// close(fd2[1]);
+				// execute command
+				printf("executing 1\n");
+				execv(cmd1[0], cmd1);
+			}
+			else
+			{			
+
+				//waitpid(pid, &status, 0);	
+				//pipe(fd2);
+				if (fork() == 0)
+				{
+					//mapipe(fd2);
+					waitpid(pid, &status, 0);	
+					printf("in cmd2 (reader/writer)\n");
+					close(STDIN_FILENO);
+					close(STDOUT_FILENO);
+
+					dup(fd[0]);
+					pipe(fd2);
+					dup(fd2[1]);
+
+					close(fd[0]);
+					close(fd[1]);
+					close(fd2[0]);
+					close(fd2[1]);
+
+					// execute command
+					printf("executing 2\n");
+					execv(cmd2[0], cmd2);
+				}
+				else
+				{		
+
+					// for(i=0;i<3;i++)
+					// {
+					// 	waitpid(pid2, &status, 0);
+					// 	waitpid(pid, &status, 0);
+					// 	waitpid(pid3, &status, 0);
+					// }
+
+					waitpid(pid, &status, 0);
+					//waitpid(pid, &status, 0);
+
+					printf("in cmd3 (reader)\n");
+					//close(STDIN_FILENO);
+
+					dup(fd2[0]);
+				
+					close(fd[0]);
+					close(fd[1]);
+					close(fd2[0]);
+					close(fd2[1]);	
+					// execute command
+					printf("executing 3\n");
+					execv(cmd3[0], cmd3);
+					printf("POST 3\n");
+				}
+			}
+
+		}
+		else
+		{
+			waitpid(pid, &status, 0);
+			waitpid(pid, &status, 0);
+			waitpid(pid, &status, 0);
+			waitpid(pid, &status, 0);
+			// parent (shell)
+			printf("in big else\n");
+			close(fd);
+			close(fd2);
+			//waitpid(pid, &status, 0);
+			
+
+		}
+	}		
+
+
+
+
+	printf("\n\n~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~\nPIPING ENDS HERE\n\n");
+
+	//free all allocated memory
+	for (i = 0; i < cmd_1_size; i++)
+		free(cmd1[i]);
+	free(cmd1);
+
+	for (i = 0; i < cmd_2_size; i++)
+		free(cmd2[i]);
+	free(cmd2);
+
+	for (i = 0; i < cmd_3_size; i++)
+		free(cmd3[i]);
+	free(cmd3);
+
+
+
+} 
 
 
 
