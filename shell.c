@@ -60,7 +60,7 @@ const char* getError(int e);
 
 int expandPath(instruction* instr, int indx);
 void cleanPath(instruction* instr, int indx);
-void printWelcomeScreen();
+//void printWelcomeScreen();
 int hasStr(instruction* instr, const char* str);
 int isOp(const char* op);
 int isPathOp(const char op);
@@ -100,7 +100,7 @@ int main()
 	aliases.maxSize = 10;
 	aliases.arrSize = 0;
 
-	printWelcomeScreen();
+	//printWelcomeScreen();
 
 	while(myExit == 0)
 	{
@@ -145,11 +145,8 @@ void printError(instruction* instr)
  */
 void getCommand(instruction* instr)
 {
-		int size = 100;
-		char* token = NULL;
+			char* token = NULL;
 		char* temp = NULL;
-		char* temp2 = NULL, temp3 = NULL;
-		char* expanded = NULL;
 		
 		printf("%s@%s : %s > ", getenv("USER"), getenv("HOSTNAME"), getenv("PWD"));
 		//printf("Please enter an instruction: ");
@@ -157,42 +154,9 @@ void getCommand(instruction* instr)
 		// loop reads character sequences separated by whitespace
 		do
 		{
-			scanf("%ms", &token);
 			//scans for next token and allocates token var to size of scanned token
-			if (getIndex(token) != -1)
-			{
-				int i = getIndex(token), size, pos1, pos2;
-				expanded = (char*)calloc(strlen((aliases.arr[i]).cmd) + 1, sizeof(char));
-				strcpy(expanded, (aliases.arr[i]).cmd);
-
-				temp2 = (char*)calloc(size, sizeof(char));
-				while(!feof(stdin)){
-					fgets(temp2, 100, stdin);
-					if(!feof(stdin)){
-						temp3 = temp2;
-						size += 100;
-						temp2 = (char*)calloc(size, sizeof(char));
-						strcpy(temp2, temp3);
-						free(temp3);
-					}
-				}
-				fputs(temp2, stdin);
-				free(free temp2);
-				/*pos1 = ftell(stdin);
-				fseek(stdin, 0, SEEK_END);
-				pos2 = ftell(stdin);
-				fseek(stdin, pos1, SEEK_SET);
-				size = pos2 - pos1;
-				FILE* temp = (FILE*) calloc(size + 1, sizeof(char));
-				fread((FILE*)temp, sizeof(char), size, stdin);
-				
-				free(token);
-				token = (char*) calloc(strlen(aliases.arr[i].cmd) + 1, sizeof(char));
-				strcpy(token, aliases.arr[i].cmd);
-				fputs(token, stdin);
-				fwrite((FILE*)temp, sizeof(char), size, stdin);*/
-			}
 			scanf("%ms", &token);
+
 			temp = (char *)malloc((strlen(token) + 1) * sizeof(char));
 
 			int i;
@@ -244,9 +208,27 @@ void getCommand(instruction* instr)
 /*
  *	Parse Command
  * 	>	instruction* 
- * 	:: 	void
- * 		
+ * 	::	void
+ * 	
+ * 	** every for-loop simply moves forward to calculate how much of the instruction
+ * 	** should be read by the receiving functions (multiple pipes/redirects/echo args/etc)
  * 
+ * 	* run through all tokens in instruction struct and execute or assign
+ * 		errors accordingly; commands are passed by a offset double pointer and an int
+ * 		value signifying the size
+ * 	* io variable is a flag to executeRedirection to communicate what redirection
+ * 		case to expect
+ * 		- case 1: singular input
+ * 		- case 2: singular outpur
+ * 		- case 3: double i/o with input first and output second
+ * 		- case 4: double i/o with output first and input second
+ * 		- case 5: echo output redirection (input doesn't work with traditional bash)
+ * 	* flag variable signals if the instruction is i/o redirect, pipe, built in, etc
+ * 		- case 1: i/o redirection
+ * 		- case 2: piping
+ * 		- case 3: cd
+ * 		- case 4: background process (not implemented)
+ * 		- default: one command execution
  */
 void parseCommand(instruction* instr)
 {
@@ -255,9 +237,12 @@ void parseCommand(instruction* instr)
 	for (i = 0; i < instr->numTokens; i++)
 	{
 		end = i;
+		// this conditional catches potential end of commands
 		if (isOp(instr->tokens[i]) || instr->tokens[i] == NULL)
 		{
+			// don't do anything if null
 			if (instr->tokens[i] == NULL) {}
+			// pipe command extraction / error assignment
 			else if (strcmp(instr->tokens[i], "|") == 0)
 			{
 				flag = 2;
@@ -301,6 +286,7 @@ void parseCommand(instruction* instr)
 					continue;
 				}
 			}
+			// i/o redirection command extraction / error assignment
 			else if (strcmp(instr->tokens[i], "<") == 0)
 			{
 				flag = 1;
@@ -334,6 +320,7 @@ void parseCommand(instruction* instr)
 
 							if (!isFile(instr->tokens[i]))
 							{
+								
 								if (io == 3)
 								{
 									FILE* file = fopen(instr->tokens[i], "w");
@@ -363,6 +350,7 @@ void parseCommand(instruction* instr)
 					continue;
 				}	
 			}
+			// i/o redirection command extraction / error assignment
 			else if (strcmp(instr->tokens[i], ">") == 0)
 			{
 				flag = 1;
@@ -497,7 +485,8 @@ void parseCommand(instruction* instr)
 						instr->error = -1;
 					}
 				}
-
+				
+				// case where echo output isn't redirected to file
 				if (instr->tokens[i+1] == NULL)
 				{
 					b_echo(instr->tokens+start, end-start);
@@ -514,6 +503,7 @@ void parseCommand(instruction* instr)
 				b_unalias(instr->tokens);
 				return;
 			}
+			// checks if 
 			else if (strcnt(instr->tokens[i], '/') == 0 && !match(instr->tokens[i], "^[\.]{1,2}"))
 			{
 				if (!inPath(instr, i))
@@ -680,13 +670,13 @@ void cleanPath(instruction* instr, int indx)
 /*
  *	Expand Path
  * 	>	char* 
- * 	:: 	void
+ * 	:: 	int
  * 
  * 	* transforms token by tokenizing it based on type of path and
  * 		what directory operands are present
  * 	* function is atomic, if there is an error, it the tok will be flagged
- * 		but 'tok' will not be changed
- *  * if successful, 'tok' will reflect absolute path
+ * 		but 'tok' will not be changed and return 0
+ *  * if successful, 'tok' will reflect absolute path and return 1
  */
 int expandPath(instruction* instr, int indx)
 {	
@@ -703,6 +693,8 @@ int expandPath(instruction* instr, int indx)
 	strcpy(tmpTok, instr->tokens[indx]); 
 	char* part = strtok(tmpTok, "/");		//tokenize by '/' delimiter
 	int i = -1;
+
+	//	tokenize path	
 	while (part != NULL)
 	{
 		i++;
@@ -731,6 +723,8 @@ int expandPath(instruction* instr, int indx)
 	free(tmpTok);
 	char* expand = NULL;
 	int count = i+1, size = 0;
+
+	// perform necessary expansions
 	for (i = 0; i < count; i++)
 	{
 		if (strcmp(temp[i], "~") == 0)
@@ -845,6 +839,7 @@ int expandPath(instruction* instr, int indx)
 		if (i+1 == count)
 			size = (strlen(temp[0]) + 1);
 	}
+
 
 	if (instr->error == -1) 
 	{
@@ -1223,6 +1218,16 @@ char* getPath()
 	return pwd;
 }
 
+
+/*
+ *  Execute Command 
+ *	>	const char**
+ * 	::	int
+ * 
+ *	* run through tok and counts how many 'levels' or spaces
+ * 		will be needed for expandPath's double char pointer allocation
+ * 
+ */
 void executeCommand(const char **cmd, const int size)
 {
 	int status, i;
@@ -1267,6 +1272,16 @@ void executeCommand(const char **cmd, const int size)
 	instrCount++;
 }
 
+
+/*
+ *  executeRedirection
+ * 	>	const char** 
+ * 	:: 	const int
+ * 
+ * 	* run through tok and counts how many 'levels' or spaces
+ * 		will be needed for expandPath's double char pointer allocation
+ * 
+ */
 void executeRedirection(const char** cmd, const int flag){
 	int i = 0, j = 0, fd = 0, fd2 = 0, inIndex = 0, outIndex = 0, status;
 	char operatorIn[] = "<", operatorOut[] = ">";
@@ -1431,6 +1446,7 @@ void executeRedirection(const char** cmd, const int flag){
 	instrCount++;
 }
 
+
 void clearAliases(){
 	int i = 0;
 	for(i; i < aliases.arrSize; i++){
@@ -1515,7 +1531,7 @@ void b_alias(const char** cmd)
 void b_unalias(const char** cmd)
 {
 	int i;
-	for(i = 0; i < aliases.maxSize; i++){
+	for(i = 0; i < aliases.arrSize; i++){
 		if(strcmp((aliases.arr[i]).cmdAlias, cmd[1]) == 0){
 			free((aliases.arr[i]).cmdAlias);
 			free((aliases.arr[i]).cmd);
@@ -1529,6 +1545,9 @@ void b_unalias(const char** cmd)
 	aliases.arrSize--;
 } 
 
+/*
+uncomment for art
+
 void printWelcomeScreen()
 {
 	printf("\n%s\n", " ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ");
@@ -1540,6 +1559,8 @@ void printWelcomeScreen()
 	printf("%s\n", "\\/\\____/ \\ \\_\\ \\_\\ \\____\\/\\____\\/\\____\\/\\_\\ \\____\\");
 	printf("%s\n\n", " \\/___/   \\/_/\\/_/\\/____/\\/____/\\/____/\\/_/\\/____/");
 }
+*/
+
 
 /*
  *	layPipe
