@@ -56,3 +56,66 @@ The git commit log is inluded as a .txt file within the tar.
 2. Environment Variables:
   Enviroment variables are correctly expanded.  
 
+3. Prompt:
+  There are know known bugs with the prompt.
+  We do have an optional welcom screen we highly recommend
+  using as it makes the whole experience more fun.
+  It is commented out by default in case it fell under
+  the category of "unecessary print statement"
+
+4. Shortcut Resolution:
+  We have no known bugs with shortcut resolution.
+
+5. Path Resolution
+  We have no known bugs with Path resolution.
+
+6. Execution
+  As for executing single commands within the context of this requirement,
+  we have no known bugs.
+
+7. I/O Redirection
+  No known bugs with I/O redirection.
+
+8. Piping:
+  Piping works with some commands we wrote but not all commands.
+  For example, in simple i/o files we wrote for testing purposes
+  we were able to have piping work for single pipes, but then it 
+  would fail when we tried to do some other commands.
+
+  An example would be t1 | t2 which worked perfectly, but something
+  like sort test.txt | uniq would not function properly. 
+
+  For double piping, we were able to get some operations working in
+  the correct order, but then sometimes it would fail -- and sometimes
+  it would appear to access unexpected areas of the code. 
+
+  We tried a variety of different approaches here but were unable to
+  procure a solution that worked for everything.
+
+9. Background processing:
+  We did not have time to implement background processing as we had
+  too many other fires to put out. We weren't able to dicuss as a
+  team how we wanted to handle it so we built our functions under
+  the assumption we would worry about it later.
+
+10. Built-Ins:
+* exit
+  Outside of things tied to the background processing requirement
+  we have no known bugs for exit.
+* cd
+  No known bugs for CD.
+* echo
+  No known bugs for echo.
+* alias
+  The program will SAVE the alius as whatever it is, but
+  we do not SAVE the alius properly.
+* unalias
+  There are no known bugs with unalias.
+
+
+KNOWN BUGS NOT MENTIONED ABOVE:
+
+* if the input ends with a space character, the program will hang.
+* piping is partially broken. more information above under piping.
+* background processing is not implemented.
+
