@@ -84,8 +84,8 @@ void clearAliases();
 void b_exit(int instrCount);
 void b_echo(const char** cmd, const int size); 
 void b_cd(const char* path); // if folder is in CWD must append ./ or segfault
-void b_alias(const char** cmd, alias* aliases);
-void b_unalias(const char** cmd, alias* aliases); 
+void b_alias(const char** cmd);
+void b_unalias(const char** cmd); 
 
 int main()
 {	
@@ -94,6 +94,9 @@ int main()
 	instr.numTokens = 0;
 	instr.error = -1;
 	instr.errCode = -1;
+
+	aliases.maxSize = 9;
+	aliases.arrSize = 0;
 
 	printWelcomeScreen();
 
@@ -182,6 +185,15 @@ void getCommand(instruction* instr)
 		{
 			scanf("%ms", &token);
 			//scans for next token and allocates token var to size of scanned token
+			//if (getIndex(token) != -1)
+			//{
+			//	int i = getIndex(token);
+			//	free(token);
+			//	token = (char*) calloc(strlen(aliases.arr[i].cmd) + 1, sizeof(char));
+			//	strcpy(token, aliases.arr[i].cmd);
+			//}
+			
+			
 			temp = (char *)malloc((strlen(token) + 1) * sizeof(char));
 
 			int i;
@@ -189,21 +201,23 @@ void getCommand(instruction* instr)
 			for (i = 0; i < strlen(token); i++)
 			{
 				//pull out special characters and make them into a separate tokaaen in the instruction
-				if (token[i] == '|' || token[i] == '>' || token[i] == '<' || token[i] == '&')
+				if (token[i] == '|' || token[i] == '>' || token[i] == '<' || token[i] == '&' || 
+					token[i] == '=' || token[i] == '\'')
 				{
 					if (i - start > 0)
 					{
 						memcpy(temp, token + start, i - start);
 						temp[i - start] = '\0';
-					
+						
 						addToken(instr, temp);
 					}
 
 					char specialChar[2];
 					specialChar[0] = token[i];
 					specialChar[1] = '\0';
-
-					addToken(instr, specialChar);
+					
+					if (token[i] != '\'')
+						addToken(instr, specialChar);
 
 					start = i + 1;
 				}
@@ -411,7 +425,8 @@ void parseCommand(instruction* instr)
 			}
 			else if (strcmp(instr->tokens[i], "&") == 0)
 			{	
-				flag = 3;
+				// lmaooooooooooooooooooo
+				flag = 4;
 				if (i == 0)
 				{
 					if (instr->tokens[i+1] == NULL)
@@ -438,9 +453,16 @@ void parseCommand(instruction* instr)
 					printf("\n");
 					break;
 				case 3:
-					b_cd(instr->tokens[i]);
-					break;
-					//lmaoooooooo
+					if (i == 1)
+					{
+						b_cd(getenv("HOME"));
+						return;
+					}	
+					else
+					{
+						b_cd(instr->tokens[i]);
+						return;
+					}
 				default:
 					executeCommand(instr->tokens+start, end-start+1);
 					break;
@@ -488,12 +510,14 @@ void parseCommand(instruction* instr)
 				}
 			}
 			else if (strcmp(instr->tokens[i], "alias") == 0)
-			{
-				//b_alias();	
+			{	
+				b_alias(instr->tokens);
+				return;	
 			}
 			else if (strcmp(instr->tokens[i], "unalias") == 0)
 			{
-				//b_unalias(); 
+				b_unalias(instr->tokens);
+				return;
 			}
 			else if (strcnt(instr->tokens[i], '/') == 0 && !match(instr->tokens[i], "^[\.]{1,2}"))
 			{
@@ -1413,16 +1437,16 @@ void executeRedirection(const char** cmd, const int flag){
 
 void clearAliases(){
 	int i = 0;
-	for(i; i < aliases->arrSize; i++){
-		free((aliases->arr[i]).cmdAlias);
-		free((aliases->arr[i]).cmd);
+	for(i; i < aliases.arrSize; i++){
+		free((aliases.arr[i]).cmdAlias);
+		free((aliases.arr[i]).cmd);
 	}
 }
 
 
 void b_exit(int instrCount)
 {
-	clearALiases();
+	clearAliases();
 	printf("Exiting...\n");
 	printf("\tCommands executed: %d\n", instrCount);
 	myExit = 1;
@@ -1451,18 +1475,18 @@ void b_cd(const char* path)
 		setenv("PWD", temp, 1);
 }
 
-void b_alias(const char** cmd, alias* aliases)
+void b_alias(const char** cmd)
 {
 	int i = 0, length = 0, opIndex = 0;
 	while(cmd[i] != NULL){
-		if(strcmp(cmd[i], "="))
+		if(strcmp(cmd[i], "=") == 0)
 			break;
 		else
 			i++;
 	}
 
-	(aliases->arr[aliases->arrSize]).cmdAlias = (char*) calloc(strlen(cmd[i-1]) + 1, sizeof(char));
-	strcpy((aliases->arr[aliases->arrSize]).cmdAlias, cmd[i-1]);
+	(aliases.arr[aliases.arrSize]).cmdAlias = (char*) calloc(strlen(cmd[i-1]) + 1, sizeof(char));
+	strcpy((aliases.arr[aliases.arrSize]).cmdAlias, cmd[i-1]);
 
 	opIndex = i;
 	i++;
@@ -1471,33 +1495,33 @@ void b_alias(const char** cmd, alias* aliases)
 		i++;
 	}
 
-	(aliases->arr[aliases->arrSize]).cmd = (char*) calloc(length + 1, sizeof(char));
+	(aliases.arr[aliases.arrSize]).cmd = (char*) calloc(length + 1, sizeof(char));
 	i = opIndex + 1;
-	strcpy((aliases->arr[aliases->arrSize]).cmd, cmd[i]);
+	strcpy((aliases.arr[aliases.arrSize]).cmd, cmd[i]);
 	i++;
 	while(cmd[i] != NULL){
-		strcat((aliases->arr[aliases->arrSize]).cmd, " ");
-		strcat((aliases->arr[aliases->arrSize]).cmd, cmd[i]);
+		strcat((aliases.arr[aliases.arrSize]).cmd, " ");
+		strcat((aliases.arr[aliases.arrSize]).cmd, cmd[i]);
 		i++;
 	}
-	aliases->arrSize++;
+	aliases.arrSize++;
 }
 
-void b_unalias(const char** cmd, alias* aliases)
+void b_unalias(const char** cmd)
 {
 	int i;
-	for(i = 0; i < aliases->maxSize; i++){
-		if(strcmp((aliases->arr[i]).cmdAlias, cmd[1]) == 0){
-			free((aliases->arr[i]).cmdAlias);
-			free((aliases->arr[i]).cmd);
+	for(i = 0; i < aliases.maxSize; i++){
+		if(strcmp((aliases.arr[i]).cmdAlias, cmd[1]) == 0){
+			free((aliases.arr[i]).cmdAlias);
+			free((aliases.arr[i]).cmd);
 			break;
 		}
 	}
 
-	for(i; i < aliases->arrSize; i++){
-			aliases->arr[i] = aliases->arr[i + 1];
+	for(i; i < aliases.arrSize; i++){
+			aliases.arr[i] = aliases.arr[i + 1];
 	}
-	aliases->arrSize--;
+	aliases.arrSize--;
 } 
 
 void printWelcomeScreen()
