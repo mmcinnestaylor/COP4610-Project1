@@ -145,8 +145,11 @@ void printError(instruction* instr)
  */
 void getCommand(instruction* instr)
 {
+		int size = 100;
 		char* token = NULL;
 		char* temp = NULL;
+		char* temp2 = NULL, temp3 = NULL;
+		char* expanded = NULL;
 		
 		printf("%s@%s : %s > ", getenv("USER"), getenv("HOSTNAME"), getenv("PWD"));
 		//printf("Please enter an instruction: ");
@@ -159,7 +162,23 @@ void getCommand(instruction* instr)
 			if (getIndex(token) != -1)
 			{
 				int i = getIndex(token), size, pos1, pos2;
-				pos1 = ftell(stdin);
+				expanded = (char*)calloc(strlen((aliases.arr[i]).cmd) + 1, sizeof(char));
+				strcpy(expanded, (aliases.arr[i]).cmd);
+
+				temp2 = (char*)calloc(size, sizeof(char));
+				while(!feof(stdin)){
+					fgets(temp2, 100, stdin);
+					if(!feof(stdin)){
+						temp3 = temp2;
+						size += 100;
+						temp2 = (char*)calloc(size, sizeof(char));
+						strcpy(temp2, temp3);
+						free(temp3);
+					}
+				}
+				fputs(temp2, stdin);
+				free(free temp2);
+				/*pos1 = ftell(stdin);
 				fseek(stdin, 0, SEEK_END);
 				pos2 = ftell(stdin);
 				fseek(stdin, pos1, SEEK_SET);
@@ -171,10 +190,9 @@ void getCommand(instruction* instr)
 				token = (char*) calloc(strlen(aliases.arr[i].cmd) + 1, sizeof(char));
 				strcpy(token, aliases.arr[i].cmd);
 				fputs(token, stdin);
-				fwrite((FILE*)temp, sizeof(char), size, stdin);
+				fwrite((FILE*)temp, sizeof(char), size, stdin);*/
 			}
-			
-			
+			scanf("%ms", &token);
 			temp = (char *)malloc((strlen(token) + 1) * sizeof(char));
 
 			int i;
