@@ -39,3 +39,11 @@ if(errorcheck)
   parse(instOld*, instnew*)
     execute()
 
+### Assessment of each task/section & known bugs
+1. Parsing:
+  Used provided parser which was eventually implemented as a separate function. Updated parser to treat the '=' as operator character in order to ease parsing of alias commands. Updated parser to manipulate standard input streams to assist in alias expansion.
+  Known Bugs: None
+
+2. Environment Variables:
+  Enviroment variables are correctly expanded.  
+
