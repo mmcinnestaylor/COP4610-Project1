@@ -111,7 +111,7 @@ int main()
 		if (instr.error != -1)
 			printError(&instr);
 
-		printTokens(&instr);
+		//printTokens(&instr);
 		clearInstruction(&instr);
 	}
 	
