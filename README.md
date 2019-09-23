@@ -119,3 +119,10 @@ KNOWN BUGS NOT MENTIONED ABOVE:
 * piping is partially broken. more information above under piping.
 * background processing is not implemented.
 
+### EXTRA CREDIT
+
+We completed the following extra credit:
+
+* Expansion
+* Environment Variables
+* SHellception
