@@ -145,8 +145,11 @@ void printError(instruction* instr)
  */
 void getCommand(instruction* instr)
 {
+		int size = 100;
 		char* token = NULL;
 		char* temp = NULL;
+		char* temp2 = NULL, temp3 = NULL;
+		char* expanded = NULL;
 		
 		printf("%s@%s : %s > ", getenv("USER"), getenv("HOSTNAME"), getenv("PWD"));
 		//printf("Please enter an instruction: ");
@@ -159,7 +162,23 @@ void getCommand(instruction* instr)
 			if (getIndex(token) != -1)
 			{
 				int i = getIndex(token), size, pos1, pos2;
-				pos1 = ftell(stdin);
+				expanded = (char*)calloc(strlen((aliases.arr[i]).cmd) + 1, sizeof(char));
+				strcpy(expanded, (aliases.arr[i]).cmd);
+
+				temp2 = (char*)calloc(size, sizeof(char));
+				while(!feof(stdin)){
+					fgets(temp2, 100, stdin);
+					if(!feof(stdin)){
+						temp3 = temp2;
+						size += 100;
+						temp2 = (char*)calloc(size, sizeof(char));
+						strcpy(temp2, temp3);
+						free(temp3);
+					}
+				}
+				fputs(temp2, stdin);
+				free(free temp2);
+				/*pos1 = ftell(stdin);
 				fseek(stdin, 0, SEEK_END);
 				pos2 = ftell(stdin);
 				fseek(stdin, pos1, SEEK_SET);
@@ -171,10 +190,9 @@ void getCommand(instruction* instr)
 				token = (char*) calloc(strlen(aliases.arr[i].cmd) + 1, sizeof(char));
 				strcpy(token, aliases.arr[i].cmd);
 				fputs(token, stdin);
-				fwrite((FILE*)temp, sizeof(char), size, stdin);
+				fwrite((FILE*)temp, sizeof(char), size, stdin);*/
 			}
-			
-			
+			scanf("%ms", &token);
 			temp = (char *)malloc((strlen(token) + 1) * sizeof(char));
 
 			int i;
@@ -437,7 +455,7 @@ void parseCommand(instruction* instr)
 					}	
 					else
 					{
-						b_cd(instr->tokens[i]);
+						b_cd(instr->tokens[i-1]);
 						return;
 					}
 				default:
@@ -528,9 +546,10 @@ void parseCommand(instruction* instr)
 		}
 		else if (match(instr->tokens[i], PATH) || isPath(instr->tokens[i]))	//process path args
 		{
-			if (strcnt(instr->tokens[i], '/') > 0 && !expandPath(instr, i))
+			if (strcnt(instr->tokens[i], '/') > 0 || flag == 3) 
 			{
-				return;
+				if (!expandPath(instr, i))
+					return;
 			
 				if (!(isDir(instr->tokens[i]) || isFile(instr->tokens[i])))
 				{
@@ -815,7 +834,7 @@ int expandPath(instruction* instr, int indx)
 					strcat(expand, "/");
 				strcat(expand, temp[i]);
 				
-				temp[0] = (char*) realloc(temp[0], (strlen(expand) + 1) * sizeof(char));
+				temp[0] = (char*) realloc(temp[0], (size + 1) * sizeof(char));
 				strcpy(temp[0], expand);
 
 				free(expand);
@@ -912,7 +931,7 @@ int isRoot(const char* tok)
 int isPath(const char* tok)
 {	
 	if (tok != NULL)
-		if (match(tok, "^(/?[^/&|<>-]*)+/?$"))
+		if (match(tok, "^(/?[^/&|<>]*)+/?$"))
 			return 1;
 
 	return 0;
@@ -1451,7 +1470,7 @@ void b_cd(const char* path)
 	char* temp = (char*) calloc(strlen(path) + 1, sizeof(char));
 	strcpy(temp, path);
 
-	if (strcmp(path, "~"))
+	if (strcmp(path, "~") == 0)
 	{
 		free(temp);
 		temp = expandVar("$HOME\0");
